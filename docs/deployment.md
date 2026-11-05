@@ -1,6 +1,6 @@
 # Этап 1: проверка размещения
 
-Статус на 2026-11-06: **локальная часть проверена; Worker опубликован, HTTPS и отказ неавторизованному webhook проверены; Neon/Telegram и alarm PENDING**.
+Статус на 2026-11-06: **Worker опубликован; HTTPS и секрет webhook проверены; реальная Neon-проверка HTTP/транзакции из Node прошла. Telegram, транзакция из Worker и alarm PENDING**.
 На момент первоначальной локальной проверки аккаунтов не было. Затем пользователь создал Cloudflare и подтвердил вход Wrangler через OAuth. Данные авторизации находятся только в игнорируемом локальном каталоге Wrangler.
 Dry-run и workerd не доказывают доступность удалённой базы, реальный Telegram и работу удалённого alarm.
 
@@ -8,13 +8,24 @@ Dry-run и workerd не доказывают доступность удалён
 
 - Адрес: https://borodach-bot.dubovbe.workers.dev
 - Исходный коммит: `b969d2f9e0aeb05ebe86575ac96c63c65eac4b06`.
-- Version ID: `1a056bdd-4bc1-48dd-b943-63705d3540b5`.
+- Version ID исходной публикации до настройки Secrets: `1a056bdd-4bc1-48dd-b943-63705d3540b5`.
 - `wrangler deploy`: успешно; SQLite-backed ProbeScheduler binding создан, запуск alarm ещё не проверен.
 - Startup Time: 13 ms. Это время старта, **не** CPU time отдельного HTTP-запроса; не сравнивать его с лимитом 10 ms CPU.
 - Скриншот кабинета пользователя показывает 100 000 запросов/сутки, что соответствует Workers Free. API subscriptions не дал подтверждения тарифных деталей; отсутствие карты/trial отдельно не установлено. Платные тарифы не включались агентом.
 - Реальные запросы с обычной проверкой TLS: GET `/health` → 200 и `{"ok":true}`; POST `/webhook` без секрета и с неверным секретом, включая невалидный JSON → 403; GET `/probe` → 404. Правильный секрет ещё не настроен, его прохождение не проверено.
 - Первый Node HTTPS-запрос после deploy получил TLS handshake failure. Последующий системный curl с проверкой TLS получил 200, повторный Node прошёл все четыре проверки, curl подтвердил 403. Ошибка больше не воспроизвелась, точная причина не установлена; код и проверка сертификатов не менялись.
-- Neon, Telegram bot token и webhook ещё не настроены. К опубликованному health доступ открыт, webhook с пустой конфигурацией секрета отказывает.
+- Теперь DATABASE_URL и WEBHOOK_SECRET переданы в Cloudflare Secrets без вывода значений. После обновления GET /health → 200; POST /webhook с верным секретом и невалидным JSON → 400 (доступ пройден, тело отвергнуто); с неверным секретом → 403. Это проверяет реальный секрет, но не регистрацию Telegram webhook.
+- Telegram bot token, BOT_INFO и FIRST_ADMIN_ID ещё не настроены. Проверка запроса к Neon из опубликованного Worker ожидает тестового бота.
+
+## Реальное подключение Neon
+
+- Подтверждён существующий проект `borodach-bot`, регион `aws-eu-central-1` (Frankfurt), PostgreSQL18. CLI projects get показывает subscription_type=free_v3.
+- Подключённый Neon MCP возвращал Unknown tool для describe_project/list_branches. Использована официальная CLI8.23.2, пользователь самостоятельно выполнил OAuth-вход. Повторный init/создание нового проекта не выполнялись.
+- `neon link --project-id <existing-project> --branch production --no-config -y` связал проект; production — имя default-ветки нашей новой тестовой базы, не боевой YCLIENTS.
+- CLI по умолчанию создала `.env.local`, а не `.env`. Файл перемещён в `.env` без перезаписи существующих файлов. Там DATABASE_URL, DATABASE_URL_UNPOOLED и NEON_BRANCH; значения нигде не напечатаны. Контекст `.neon` и файлы окружения исключены из Git.
+- В `.dev.vars` сохранены DATABASE_URL и криптографически случайный WEBHOOK_SECRET. Они переданы Wrangler secret bulk через stdin, без паролей в аргументах команды/отчёте.
+- Реальный `npm run probe:neon`: exit0, `{"ok":true,"http":true,"transaction":true}`. Выполнены HTTP SELECT1, затем Client BEGIN/SELECT1/ROLLBACK с закрытием соединения; таблицы не создавались и данные не записывались.
+- Это подтверждает драйвер и соединение из Node. Реальный WebSocket Client именно из Workers, Telegram reply и удалённый alarm остаются непроверенными.
 
 ## Локальные команды
 
@@ -118,14 +129,16 @@ grammY 1.46.0, Neon driver 1.2.0. Транзитивные версии фикс
 | npm test / typecheck | PASS |
 | Wrangler dry-run | PASS; это не CPU замер |
 | Cloudflare: создание аккаунта, OAuth и deploy | PASS |
-| Neon: аккаунт и доступность | **PENDING** |
-| Только Free, без карты/trial, фактические квоты | Cloudflare: показана квота 100 000/сутки; детали billing и Neon **PENDING** |
+| Neon: аккаунт и доступность | PASS: CLI OAuth, существующий проект Frankfurt/PostgreSQL18 |
+| Только Free, без карты/trial, фактические квоты | Neon Free подтверждён subscription_type=free_v3; Cloudflare квота100000/сутки соответствует Free. Отсутствие карты/trial и фактическое потребление отдельно не подтверждены |
 | Реальный workers.dev HTTPS | PASS: GET /health 200, {"ok":true} |
 | Отказ webhook без/с неверным секретом | PASS: 403, в том числе до разбора невалидного JSON |
 | Отсутствие публичного probe HTTP | PASS: /probe 404 |
-| Правильный секрет и реальный webhook Telegram | **PENDING** |
+| Правильный секрет в опубликованном Worker | PASS: верный секрет + невалидный JSON →400, неверный →403 |
+| Регистрация реального webhook Telegram | **PENDING** |
 | Реальный Telegram /start → Neon → ответ | **PENDING** |
-| Реальная интерактивная Neon-транзакция Node + Worker /probe_db | **PENDING** |
+| Реальные HTTP и интерактивная Neon-транзакция из Node | PASS: probe:neon exit0, http=true, transaction=true |
+| Реальная Neon-транзакция из Worker /probe_db | **PENDING** |
 | Alarm на Cloudflare Free | **PENDING** |
 | CPU и фактическое потребление квот | **PENDING** |
 | Удаление временных команд из опубликованного Worker | **PENDING** |

@@ -4,7 +4,7 @@
 
 ## Статус
 
-Описание и план первой версии согласованы. В ветке `chore/stage-1-deployment-probe` подготовлен минимальный Worker: локальные тесты (14 Worker + 3 CLI), TypeScript, сборка и независимое ревью прошли. Worker опубликован: [health](https://borodach-bot.dubovbe.workers.dev/health) отвечает 200, webhook без верного секрета — 403. Проверки Neon, Telegram, удалённого alarm и квот ещё ожидаются; этап 1 не завершён. Полного функционала записи пока нет.
+Описание и план первой версии согласованы. В ветке `chore/stage-1-deployment-probe` подготовлен минимальный Worker: локальные тесты (14 Worker + 3 CLI), TypeScript, сборка и независимое ревью прошли. Worker опубликован: [health](https://borodach-bot.dubovbe.workers.dev/health) отвечает 200, webhook без верного секрета — 403. Реальные HTTP SELECT и транзакция Neon из Node прошли, секреты подключения переданы в Cloudflare. Проверки Telegram, Neon именно из Worker, удалённого alarm и расхода квот ещё ожидаются; этап 1 не завершён. Полного функционала записи пока нет.
 
 - TypeScript, Cloudflare Workers, Neon PostgreSQL.
 - Бюджет: 0 рублей в пределах бесплатных квот; доступность регистрации предстоит проверить.
