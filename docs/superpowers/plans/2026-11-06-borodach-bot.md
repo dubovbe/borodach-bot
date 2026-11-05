@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript strict, grammY, @neondatabase/serverless (Client для интерактивных транзакций), SQL-миграции без ORM, Vitest + @cloudflare/vitest-plugin, Wrangler; Node.js LTS с npm, PostgreSQL тестовой среды. Точные совместимые версии проверяются и фиксируются package-lock.json на этапе 1, не копируются из старых примеров.
 
-**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Выполняется только этап 1: локальная часть и публикация Cloudflare проверены, реальный секрет webhook работает, Neon Free Frankfurt подключён и Node HTTP/транзакция прошли. Telegram, Neon из Worker и alarm подтверждены скриншотом пользователя; минимальный CPU smoke принят с оговорками в docs/deployment.md, временные команды удалены и очистка опубликована. Техническая часть этапа1 завершена; отдельные счётчики потребления и отсутствие карты/trial не подтверждены. Этапы2–11 не начаты. Роли/модели: [agent-team.md](../../agent-team.md).
+**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Техническая проверка этапа 1 завершена с ограничениями CPU/учёта расхода в docs/deployment.md. Пользователь разрешил этап 2: отдельная тестовая ветка Neon, разработчик Sol Medium, проверяющий Sol High. Уточнения исполнения — docs/stage-2-foundation.md. Этапы 3–11 не начаты. Роли: [agent-team.md](../../agent-team.md).
 
 ## Global Constraints
 

@@ -1,7 +1,8 @@
-import { Bot } from 'grammy';
-import type { UserFromGetMe, Update } from 'grammy/types';
+import type { Update } from 'grammy/types';
 import type { Env } from './env';
-import { probeDatabase } from './db/probe';
+import { createDatabase } from './db/client';
+import { Repository } from './db/repository';
+import { createBot } from './bot/create-bot';
 export { probeDatabase } from './db/probe';
 export { ProbeScheduler } from './jobs/scheduler';
 
@@ -20,14 +21,7 @@ export default {
     catch { return new Response('Invalid update', { status: 400 }); }
     if (!update || !Number.isSafeInteger(update.update_id)) return new Response('Invalid update', { status: 400 });
     try {
-      const bot = new Bot(env.BOT_TOKEN, {
-        botInfo: JSON.parse(env.BOT_INFO) as UserFromGetMe,
-        client: { timeoutSeconds: 5 },
-      });
-      bot.command('start', async (ctx) => {
-        const result = await probeDatabase(env.DATABASE_URL);
-        await ctx.reply(result.ok ? 'Тестовый бот запущен. Проверка базы прошла.' : 'База временно недоступна. Попробуйте позже.');
-      });
+      const bot = createBot(env, new Repository(createDatabase(env.DATABASE_URL), env.FIRST_ADMIN_ID));
       await bot.handleUpdate(update);
       return new Response('OK');
     } catch {

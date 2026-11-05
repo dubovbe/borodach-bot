@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@neondatabase/serverless';
 import worker, { probeDatabase } from '../../src/worker';
 import type { Env } from '../../src/env';
+import { Repository } from '../../src/db/repository';
 
 const bindings = env as unknown as Env;
 const call = (request: Request, config = bindings) => worker.fetch(request, config, createExecutionContext());
@@ -69,22 +70,26 @@ describe('Stage 1 deployment probe', () => {
     expect(Date.now() - started).toBeLessThan(4500);
   }, 5000);
 
-  it('start_selects_once_then_sends_safe_telegram_reply', async () => {
+  it('start_commits_then_sends_safe_telegram_reply', async () => {
+    const execute = vi.spyOn(Repository.prototype, 'execute').mockResolvedValue({ status: 'started', nextWake: '2026-11-06T00:00:00.000Z' });
+    vi.spyOn(Repository.prototype, 'pendingStart').mockResolvedValue({ id: 'message', chatId: '100', text: 'Тестовый бот запущен.' });
+    const mark = vi.spyOn(Repository.prototype, 'markSent').mockResolvedValue();
     const destinations: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input); destinations.push(url);
-      if (url.includes('neon.tech')) return sqlResult();
+      expect(execute).toHaveBeenCalledOnce();
       expect(url).toBe('https://api.telegram.org/bot123456:test-token/sendMessage');
-      expect(JSON.parse(String(init?.body))).toMatchObject({ chat_id: 100 });
+      expect(JSON.parse(String(init?.body))).toMatchObject({ chat_id: '100' });
       expect(String(init?.body)).not.toContain('fake-password');
       return Response.json({ ok: true, result: { message_id: 2, date: 1, chat: { id: 100, type: 'private' }, text: 'ok' } });
     });
     expect((await call(update('/start'))).status).toBe(200);
-    expect(destinations).toHaveLength(2);
-    expect(destinations[0]).toContain('neon.tech');
+    expect(destinations).toHaveLength(1);
+    expect(mark).toHaveBeenCalledWith('message');
   });
 
   it('provider_errors_do_not_escape_webhook', async () => {
+    vi.spyOn(Client.prototype, 'connect').mockRejectedValue(new Error('fake-password test-token'));
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fake-password test-token'));
     const response = await call(update('/start'));
     expect(response.status).toBe(503);
