@@ -1,0 +1,7 @@
+# Copy to .dev.vars locally; never commit real credentials.
+BOT_TOKEN=123456:REPLACE_LOCALLY
+# Complete result object from Telegram getMe, JSON on one line.
+BOT_INFO={"id":123456,"is_bot":true,"first_name":"Test","username":"replace_test_bot"}
+WEBHOOK_SECRET=REPLACE_WITH_RANDOM_SECRET
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+FIRST_ADMIN_ID=123456789

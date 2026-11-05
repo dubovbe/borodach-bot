@@ -6,9 +6,9 @@
 
 **Architecture:** Один TypeScript Worker принимает webhook и обрабатывает команды; Neon PostgreSQL хранит пользователей, графики, заявки, визиты, историю и задания уведомлений. Изменения фиксируются атомарно, затем уведомления доставляются из outbox. Предлагается один SQLite-backed Durable Object только как будильник следующего задания: база записей остаётся в Neon, постоянного опроса PostgreSQL нет.
 
-**Tech Stack:** TypeScript strict, grammY, @neondatabase/serverless (Client для интерактивных транзакций), SQL-миграции без ORM, Vitest + @cloudflare/vitest-pool-workers, Wrangler; Node.js LTS с npm, PostgreSQL тестовой среды. Точные совместимые версии проверяются и фиксируются package-lock.json на этапе 1, не копируются из старых примеров.
+**Tech Stack:** TypeScript strict, grammY, @neondatabase/serverless (Client для интерактивных транзакций), SQL-миграции без ORM, Vitest + @cloudflare/vitest-plugin, Wrangler; Node.js LTS с npm, PostgreSQL тестовой среды. Точные совместимые версии проверяются и фиксируются package-lock.json на этапе 1, не копируются из старых примеров.
 
-**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). Статус плана: на согласовании; реализация не начата. Роли/модели: [agent-team.md](../../agent-team.md).
+**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Выполняется только этап 1: локальная часть и публикация Cloudflare проверены, реальный секрет webhook работает, Neon Free Frankfurt подключён и Node HTTP/транзакция прошли. Telegram, Neon из Worker и alarm подтверждены скриншотом пользователя; минимальный CPU smoke принят с оговорками в docs/deployment.md, временные команды удалены и очистка опубликована. Техническая часть этапа1 завершена; отдельные счётчики потребления и отсутствие карты/trial не подтверждены. Этапы2–11 не начаты. Роли/модели: [agent-team.md](../../agent-team.md).
 
 ## Global Constraints
 
@@ -92,10 +92,12 @@ tests/fixtures/               вымышленные пользователи/м
 **Interfaces:** `Env={BOT_TOKEN:string,BOT_INFO:string,WEBHOOK_SECRET:string,DATABASE_URL:string,FIRST_ADMIN_ID:string,SCHEDULER:DurableObjectNamespace}`; `fetch(request,env,ctx):Promise<Response>`; `ProbeScheduler.alarm():Promise<void>`; `probeDatabase(url:string):Promise<{ok:boolean}>`.
 
 - [ ] Проверить полноценный Node LTS + npm: сейчас найден Node v24.22.1, npm в PATH не обнаружен. Использовать официальный дистрибутив после проверки имеющихся инструментов; глобальный runtime Codex не заменять. Пользователь сам создаёт аккаунты Cloudflare/Neon и тестового бота через BotFather; секреты вводит локально, не в чат и не GitHub. Убедиться, что включены только Free, без пробного платного периода/карты.
-- [ ] Создать минимальные конфигурации, затем тесты `health_has_no_db_dependency` (GET /health=200, dbCalls=0), `rejects_wrong_webhook_secret` (403, dbCalls=0), `database_probe_is_bounded` (один SELECT, вывод без URL/секрета). До реализации handler/probe `npm run test:worker -- tests/worker/health.test.ts` обязан падать по отсутствующей реализации.
-- [ ] Реализовать минимальные интерфейсы, прогнать `npm run typecheck`, указанные тесты и `npm run build` (Wrangler dry-run). Отдельный временный probe DO проверяет deploy/alarm на Free, не запускает опрос базы.
-- [ ] Выполнить минимальную реальную цепочку /start → webhook → SELECT 1 → ответ Telegram и alarm → безопасная тестовая отметка; не разворачивать остальной функционал. В отчёте проверить HTTPS workers.dev, webhook secret, runtime, интерактивную Neon-транзакцию BEGIN/SELECT/ROLLBACK, CPU и квоты. Удалить probe-маршрут из опубликованного Worker после проверки. GET /health не будит базу.
-- [ ] Зафиксировать результаты в docs/deployment.md без секретов. Если регистрация, DO Free, соединение или CPU не проходят, остановить реализацию и согласовать изменение подхода; не включать платный тариф. Коммит `chore: verify free Workers and Neon deployment`, push, сверка SHA.
+- [x] Создать минимальные конфигурации, затем тесты `health_has_no_db_dependency` (GET /health=200, dbCalls=0), `rejects_wrong_webhook_secret` (403, dbCalls=0), `database_probe_is_bounded` (один SELECT, вывод без URL/секрета). До реализации handler/probe `npm run test:worker -- tests/worker/health.test.ts` обязан падать по отсутствующей реализации.
+- [x] Реализовать минимальные интерфейсы, прогнать `npm run typecheck`, указанные тесты и `npm run build` (Wrangler dry-run). Отдельный временный probe DO проверяет deploy/alarm на Free, не запускает опрос базы.
+- [x] Выполнить минимальную реальную цепочку /start → webhook → SELECT 1 → ответ Telegram и alarm → безопасная тестовая отметка; не разворачивать остальной функционал. В отчёте проверить HTTPS workers.dev, webhook secret, runtime, интерактивную Neon-транзакцию BEGIN/SELECT/ROLLBACK, CPU и квоты. Удалить probe-маршрут из опубликованного Worker после проверки. GET /health не будит базу.
+- [x] Зафиксировать результаты в docs/deployment.md без секретов. Если регистрация, DO Free, соединение или CPU не проходят, остановить реализацию и согласовать изменение подхода; не включать платный тариф. Коммит `chore: verify free Workers and Neon deployment`, push, сверка SHA.
+
+Примечание к первому пункту: Node24.22.2/npm11.19.1 и аккаунты настроены; Neon Free и квота Workers100000/сутки подтверждены. Отсутствие карты/trial отдельно не проверено, поэтому смешанный административный пункт не отмечен целиком. Приёмка технического smoke и её ограничения описаны в docs/deployment.md.
 
 ## Этап 2: транзакционная основа и повторные события
 
@@ -268,4 +270,4 @@ expect(planReminders({
 
 ## Передача к реализации
 
-План ожидает согласования пользователем, в том числе решений исполнителя (планировщик DO, точные границы, формы, резервирование). Сохраняется ранее выбранная работа с субагентами и остановками между этапами. После согласования выполнить только этап 1, показать результат, затем обсуждать следующий. Не запускать сразу все 11 этапов.
+План согласован пользователем, включая решения исполнителя (планировщик DO, точные границы, формы, резервирование). Сохраняется ранее выбранная работа с субагентами и остановками между этапами. Выполнить только этап 1, показать фактический результат, затем обсуждать следующий. Не запускать сразу все 11 этапов. Этап 1 нельзя считать завершённым без реального deploy, проверки Neon-транзакции, Telegram webhook и DO alarm.

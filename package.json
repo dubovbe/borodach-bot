@@ -1,0 +1,28 @@
+{
+  "name": "borodach-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && node --test tests/node/*.test.ts",
+    "test:probe": "node --test tests/node/*.test.ts",
+    "test:worker": "vitest run",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "probe:neon": "node --env-file=.env scripts/probe-neon.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
+    "grammy": "1.46.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.6.0",
+    "@cloudflare/workers-types": "5.20261104.1",
+    "@types/node": "^24.0.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.158.0"
+  }
+}
