@@ -1,0 +1,1421 @@
+{
+  "count": 283,
+  "divisions": 18,
+  "roles": {
+    "3d-scene-developer.toml": {
+      "source": "gis/gis-3d-scene-developer.md",
+      "name": "3D & Scene Developer",
+      "sha256": "1c4e8e03864fd86fc164e4995d0c7e8882f59dd1ad72066e4fce92c0ce31fb4c"
+    },
+    "accessibility-auditor.toml": {
+      "source": "testing/testing-accessibility-auditor.md",
+      "name": "Accessibility Auditor",
+      "sha256": "edb4564fab0c30af5f02ef4afa444876b06587b52e0dfff81e8e92b66764ee5e"
+    },
+    "account-strategist.toml": {
+      "source": "sales/sales-account-strategist.md",
+      "name": "Account Strategist",
+      "sha256": "fd2b7cee9016d19d3b8f7e824694841e729dbac3013c4fafb963504291273f7a"
+    },
+    "accounts-payable-agent.toml": {
+      "source": "specialized/accounts-payable-agent.md",
+      "name": "Accounts Payable Agent",
+      "sha256": "c6feba997a3dce4c224cdd37439cea30ad0f59af1250c6ba45aefcb6b283bab3"
+    },
+    "ad-creative-strategist.toml": {
+      "source": "paid-media/paid-media-creative-strategist.md",
+      "name": "Ad Creative Strategist",
+      "sha256": "e258840c5f83e1e1f373486339d4704753ecfd2e895d178ba6e69480f1dd34d4"
+    },
+    "aeo-foundations-architect.toml": {
+      "source": "marketing/marketing-aeo-foundations.md",
+      "name": "AEO Foundations Architect",
+      "sha256": "fada27961d7191a645d37756a837aa4fc82ee8abc0f56875abfbe9027e4f04f4"
+    },
+    "agentic-identity-trust-architect.toml": {
+      "source": "specialized/agentic-identity-trust.md",
+      "name": "Agentic Identity & Trust Architect",
+      "sha256": "a004628b5bbb808b43a4ad8f6c8c5f8a0811b23a3c48ea6404c73ab83dca308f"
+    },
+    "agentic-search-optimizer.toml": {
+      "source": "marketing/marketing-agentic-search-optimizer.md",
+      "name": "Agentic Search Optimizer",
+      "sha256": "778f41555fbb2f4017245f80d341afd1928e5be926bf440ccb8aa5ece2dfc178"
+    },
+    "agents-orchestrator.toml": {
+      "source": "specialized/agents-orchestrator.md",
+      "name": "Agents Orchestrator",
+      "sha256": "eadbee7acea723b57b25bc1d4fc089f6fce9efe01d4a0692b040a43231964584"
+    },
+    "aging-parent-care-companion.toml": {
+      "source": "specialized/healthcare-aging-parent-care-companion.md",
+      "name": "Aging Parent Care Companion",
+      "sha256": "f89f19370adbc6d7cab69c250cde6b311fddbe0e0840a99c8ff8a3f5db0cb2ca"
+    },
+    "ai-citation-strategist.toml": {
+      "source": "marketing/marketing-ai-citation-strategist.md",
+      "name": "AI Citation Strategist",
+      "sha256": "42e229269a0887e46ef1864a5e3ca23d57591cf9687f24378da70c9a8e600808"
+    },
+    "ai-data-remediation-engineer.toml": {
+      "source": "engineering/engineering-ai-data-remediation-engineer.md",
+      "name": "AI Data Remediation Engineer",
+      "sha256": "bbd039335ae48c1a232d1a31d5dae91e5a92e0e24ac044baed958254ffeb7ecd"
+    },
+    "ai-engineer.toml": {
+      "source": "engineering/engineering-ai-engineer.md",
+      "name": "AI Engineer",
+      "sha256": "854b52fdda5aaca460c6cd1a2020ca77acccd5280c2628624dc7e58743652b29"
+    },
+    "ai-generated-code-security-auditor.toml": {
+      "source": "security/security-ai-generated-code-auditor.md",
+      "name": "AI-Generated Code Security Auditor",
+      "sha256": "fab4bd61da0ae690f86c734384e6ab4967dc2cda0e96b186386c400ea07fb385"
+    },
+    "analytics-reporter.toml": {
+      "source": "support/support-analytics-reporter.md",
+      "name": "Analytics Reporter",
+      "sha256": "c26a973acc30ef2dba917b67346782229d4e6c0e4fa5cce5e1c0a6d9ec72ad13"
+    },
+    "anthropologist.toml": {
+      "source": "academic/academic-anthropologist.md",
+      "name": "Anthropologist",
+      "sha256": "9f80ca52af0281b2d7dea679c6dfdf077b9c28ac5d7b36d1ff5b41652a8a4f20"
+    },
+    "api-platform-engineer.toml": {
+      "source": "engineering/engineering-api-platform-engineer.md",
+      "name": "API Platform Engineer",
+      "sha256": "e48ca5af12f821bf65a199cefc9f9ecbe591405707d3015c225d51aed5c90222"
+    },
+    "api-tester.toml": {
+      "source": "testing/testing-api-tester.md",
+      "name": "API Tester",
+      "sha256": "5454d433ccb4cbfc807365360a8e2245dabbbd9af689fea148d3fc74b8a22ceb"
+    },
+    "app-store-optimizer.toml": {
+      "source": "marketing/marketing-app-store-optimizer.md",
+      "name": "App Store Optimizer",
+      "sha256": "1b3fc2bb33893692ce874f4157eea4677521cb351d1db9a0d4fcb3c93b47e10f"
+    },
+    "application-security-engineer.toml": {
+      "source": "security/security-appsec-engineer.md",
+      "name": "Application Security Engineer",
+      "sha256": "e47a5ab0da2d13976cd5fec8a319144ab09534aadafe35f87c7455801cceb05f"
+    },
+    "ats-validator-architect.toml": {
+      "source": "engineering/engineering-ats-validator-architect.md",
+      "name": "ATS Validator Architect",
+      "sha256": "72844af882a6fac42d28e8d77213604c7912d1cc2160ae9a3aaf134e357fcec6"
+    },
+    "automation-governance-architect.toml": {
+      "source": "specialized/automation-governance-architect.md",
+      "name": "Automation Governance Architect",
+      "sha256": "2a437c76bc4161024a79db3304806d45250e8e268397da14341d859c848e605a"
+    },
+    "autonomous-optimization-architect.toml": {
+      "source": "engineering/engineering-autonomous-optimization-architect.md",
+      "name": "Autonomous Optimization Architect",
+      "sha256": "129372a9058f8a5cb2bab5a5b3954ae1f055e7e3b808f4264bc8b9372e63fa1b"
+    },
+    "backend-architect.toml": {
+      "source": "engineering/engineering-backend-architect.md",
+      "name": "Backend Architect",
+      "sha256": "55a7857d651ae401196fd62207dccf7a3d2c013d4857d70d060a6c971494376f"
+    },
+    "baidu-seo-specialist.toml": {
+      "source": "marketing/marketing-baidu-seo-specialist.md",
+      "name": "Baidu SEO Specialist",
+      "sha256": "2c8d929493372f2e2adeb55a80c93b64e8d0eb041515f83ea9936f4f60086658"
+    },
+    "behavioral-nudge-engine.toml": {
+      "source": "product/product-behavioral-nudge-engine.md",
+      "name": "Behavioral Nudge Engine",
+      "sha256": "4a9dd2ef5ed4af4f8a09e98ca31b0a51d8b821a2de4bbb6ed0a77b6699d48601"
+    },
+    "bilibili-content-strategist.toml": {
+      "source": "marketing/marketing-bilibili-content-strategist.md",
+      "name": "Bilibili Content Strategist",
+      "sha256": "8015497106d8710e56a71e96488e6392340bcf99488408017c8b21f0b83c0c7f"
+    },
+    "bim-gis-specialist.toml": {
+      "source": "gis/gis-bim-specialist.md",
+      "name": "BIM/GIS Specialist",
+      "sha256": "e0c2cc22f6dd4c1707b54d57fd7f7f0504873ce0666d5079fc34820ea023602e"
+    },
+    "blender-add-on-engineer.toml": {
+      "source": "game-development/blender/blender-addon-engineer.md",
+      "name": "Blender Add-on Engineer",
+      "sha256": "d9a71e74d7d7bfefe93cc57c9d6875c83f69a7e94dfe9c5792c9a441a8345a5a"
+    },
+    "blockchain-security-auditor.toml": {
+      "source": "security/security-blockchain-security-auditor.md",
+      "name": "Blockchain Security Auditor",
+      "sha256": "d6e7579ce0e5531c2a01fea5491be10f4961adcfda6e4ac44ba873c57ab73293"
+    },
+    "book-co-author.toml": {
+      "source": "marketing/marketing-book-co-author.md",
+      "name": "Book Co-Author",
+      "sha256": "241b5675fa29c491915fa59b78c633b0d846aa8872da548a4b02e968c786dd50"
+    },
+    "bookkeeper-controller.toml": {
+      "source": "finance/finance-bookkeeper-controller.md",
+      "name": "Bookkeeper & Controller",
+      "sha256": "967e2bd5f0579aa501fa125d4a7fc1d0812ec5c368b3a6a21963d6a9c7cb8dd6"
+    },
+    "brand-guardian.toml": {
+      "source": "design/design-brand-guardian.md",
+      "name": "Brand Guardian",
+      "sha256": "7766abc3144cc89d7a2f30d4aa71870d70a8f1dca381420767414cdd7ad314f6"
+    },
+    "business-strategist.toml": {
+      "source": "specialized/business-strategist.md",
+      "name": "Business Strategist",
+      "sha256": "06abebd844d6cb4a208c3fd9af0cf5187378cc10a268b691dbada0ed7d41c887"
+    },
+    "carousel-growth-engine.toml": {
+      "source": "marketing/marketing-carousel-growth-engine.md",
+      "name": "Carousel Growth Engine",
+      "sha256": "451d4598d07f33009ca333f3ee932aa3dff584d77496090fc60064566fcf3402"
+    },
+    "cartography-designer.toml": {
+      "source": "gis/gis-cartography-designer.md",
+      "name": "Cartography Designer",
+      "sha256": "4fa0dc0e294a57db3328a84f5100b923748dce522513d6b54d7655636f8b2abe"
+    },
+    "change-management-consultant.toml": {
+      "source": "specialized/change-management-consultant.md",
+      "name": "Change Management Consultant",
+      "sha256": "75e744f8426a77f196ad3f90afa8929a36c79474bdd2854c243050b45820a64f"
+    },
+    "chief-financial-officer.toml": {
+      "source": "specialized/chief-financial-officer.md",
+      "name": "Chief Financial Officer",
+      "sha256": "4d98bdbb09945ded95f4c65d29787200bcbc6f1caab6cb32ece9f490d8258e27"
+    },
+    "chief-of-staff.toml": {
+      "source": "specialized/specialized-chief-of-staff.md",
+      "name": "Chief of Staff",
+      "sha256": "252bed1d94cb8833b02f375f56c85155eb5e2d54792d1e065912dc909319ab08"
+    },
+    "china-e-commerce-operator.toml": {
+      "source": "marketing/marketing-china-ecommerce-operator.md",
+      "name": "China E-Commerce Operator",
+      "sha256": "0fc12619ad768e42877f2d448ebfd4df7e97b0fa447c314ef44774f516e2b061"
+    },
+    "china-market-localization-strategist.toml": {
+      "source": "marketing/marketing-china-market-localization-strategist.md",
+      "name": "China Market Localization Strategist",
+      "sha256": "d7a4e28b75e893422b26043de7a9195ba1ee60229797540c1d142475d9f08d0c"
+    },
+    "china-network-engineer.toml": {
+      "source": "engineering/engineering-china-network-engineer.md",
+      "name": "China Network Engineer",
+      "sha256": "133d7170035d22cc03de44d724390859ba8a34397c4e41bfaf13ff7f3fa65d8b"
+    },
+    "civil-engineer.toml": {
+      "source": "specialized/specialized-civil-engineer.md",
+      "name": "Civil Engineer",
+      "sha256": "d8aec9ddcc0294b6a6c3487f1eff3ed4bbb44e22f2ee7e8ad256472b65c2bd72"
+    },
+    "clinical-evidence-agent.toml": {
+      "source": "healthcare/healthcare-clinical-evidence-agent.md",
+      "name": "Clinical Evidence Agent",
+      "sha256": "965ffc41d3d6572b10514e9d07aa9f0143b7ac2c7295d8bc2b5478c8fcd62aad"
+    },
+    "cloud-security-architect.toml": {
+      "source": "security/security-cloud-security-architect.md",
+      "name": "Cloud Security Architect",
+      "sha256": "6515d74df875fd972c7ae6e885b5a8a89ef7fd968043fc43cfa64800c89791ac"
+    },
+    "cms-developer.toml": {
+      "source": "engineering/engineering-cms-developer.md",
+      "name": "CMS Developer",
+      "sha256": "31efdd58d5fa7c890aee0d6a1453d748fc1503215f4ff6ff7e1f33b1feda8198"
+    },
+    "code-reviewer.toml": {
+      "source": "engineering/engineering-code-reviewer.md",
+      "name": "Code Reviewer",
+      "sha256": "40e32a1188bb51af8bc5bdfa69341510e8f9c2d331d3ed6b53f25b71c052eeaf"
+    },
+    "codebase-archaeologist.toml": {
+      "source": "specialized/specialized-codebase-archaeologist.md",
+      "name": "Codebase Archaeologist",
+      "sha256": "d6b1e0ac64a5d35dc4afddc30f85c1c32d8e878163ee2c599130f4bdff1c6ac8"
+    },
+    "codebase-onboarding-engineer.toml": {
+      "source": "engineering/engineering-codebase-onboarding-engineer.md",
+      "name": "Codebase Onboarding Engineer",
+      "sha256": "7d998862630c1bed686207b43dd677fa67df14eea63cb607dec28a82176b1f63"
+    },
+    "compliance-auditor.toml": {
+      "source": "security/security-compliance-auditor.md",
+      "name": "Compliance Auditor",
+      "sha256": "8b3636b0c6f2255ad06c7f6958d96ffc0b7c1674f1a321c8d096fe310f72e838"
+    },
+    "content-creator.toml": {
+      "source": "marketing/marketing-content-creator.md",
+      "name": "Content Creator",
+      "sha256": "f6e117b69d51dd95dd356d691bbcbf4852095f74cb7b725e55bdaaf997b5d98a"
+    },
+    "corporate-training-designer.toml": {
+      "source": "specialized/corporate-training-designer.md",
+      "name": "Corporate Training Designer",
+      "sha256": "69dea12aef079267bf845f2e163688cf539ea5cf50332c40f0359980be08250a"
+    },
+    "cross-border-e-commerce-specialist.toml": {
+      "source": "marketing/marketing-cross-border-ecommerce.md",
+      "name": "Cross-Border E-Commerce Specialist",
+      "sha256": "156d87c8a64faa3c24c235471720a5b0148fb16be3e9e260eaf9e2644b7fad45"
+    },
+    "cultural-intelligence-strategist.toml": {
+      "source": "specialized/specialized-cultural-intelligence-strategist.md",
+      "name": "Cultural Intelligence Strategist",
+      "sha256": "48148d97d748ee91f50c10c74ee17570b3947efcdf9616125cc84c63cc93d694"
+    },
+    "customer-service.toml": {
+      "source": "specialized/customer-service.md",
+      "name": "Customer Service",
+      "sha256": "bc1752b97ef7794d722c940d8733b9fc2aaff41bcfc581e06e6306cc1614deaf"
+    },
+    "customer-success-manager.toml": {
+      "source": "specialized/customer-success-manager.md",
+      "name": "Customer Success Manager",
+      "sha256": "7ad1ccaa75d52d802339225ee045b3809940548eb31b4e1bd47d6cf40a7f48aa"
+    },
+    "data-consolidation-agent.toml": {
+      "source": "specialized/data-consolidation-agent.md",
+      "name": "Data Consolidation Agent",
+      "sha256": "50945a45f9d6dd25753c9a04a7c8fad08f3d30d6786690da55a41b8251573b28"
+    },
+    "data-engineer.toml": {
+      "source": "engineering/engineering-data-engineer.md",
+      "name": "Data Engineer",
+      "sha256": "5917d103f6dae28f52749033daa1a2830085f8b3a2c2eb76f34d82cf9fc6fe1c"
+    },
+    "data-privacy-officer.toml": {
+      "source": "specialized/data-privacy-officer.md",
+      "name": "Data Privacy Officer",
+      "sha256": "df670b1e35d2bebb72f16a9e0d70a8a183ae41c1a6084ffb5f79c2beb58a0444"
+    },
+    "data-visualization-engineer.toml": {
+      "source": "engineering/engineering-data-visualization-engineer.md",
+      "name": "Data Visualization Engineer",
+      "sha256": "2b622d9522a498726c781838019156b9b5dfc264bed0b62735119632c172a121"
+    },
+    "database-optimizer.toml": {
+      "source": "engineering/engineering-database-optimizer.md",
+      "name": "Database Optimizer",
+      "sha256": "4ec4fac1219eb5d19a66f2e5c1c2d80fef46f1bdecc7884566c1290150ab322d"
+    },
+    "database-reliability-engineer.toml": {
+      "source": "engineering/engineering-database-reliability-engineer.md",
+      "name": "Database Reliability Engineer",
+      "sha256": "f0ffd4c32fa2599cab835670a29bea05b626876cb2ee1f316fe02124e30279ad"
+    },
+    "deal-strategist.toml": {
+      "source": "sales/sales-deal-strategist.md",
+      "name": "Deal Strategist",
+      "sha256": "321fcfe344e3a9a2659c5fad8ae1dd559a84bee0ad12d2a1d183f8dc32930356"
+    },
+    "desktop-app-engineer.toml": {
+      "source": "engineering/engineering-desktop-app-engineer.md",
+      "name": "Desktop App Engineer",
+      "sha256": "f04e1cedc56ccad35684c38f6adf510ac551d1934605dd4e9aa611a6abf52bd7"
+    },
+    "developer-advocate.toml": {
+      "source": "specialized/specialized-developer-advocate.md",
+      "name": "Developer Advocate",
+      "sha256": "0f2d309d9a2ad023f0510648ec947deebd07f8ee30b721c52913d611fb97a441"
+    },
+    "developer-community-builder.toml": {
+      "source": "marketing/marketing-developer-community-builder.md",
+      "name": "Developer Community Builder",
+      "sha256": "3e4acab6903910655a99c890e2b3f9fe7088fb6fa3d2d44b5f84ffea29bf86ea"
+    },
+    "developer-tooling-engineer.toml": {
+      "source": "engineering/engineering-developer-tooling-engineer.md",
+      "name": "Developer Tooling Engineer",
+      "sha256": "db4ca997251a0373e8f069d7454e992655343d924ed106a45a3cdb3614b50076"
+    },
+    "devops-automator.toml": {
+      "source": "engineering/engineering-devops-automator.md",
+      "name": "DevOps Automator",
+      "sha256": "dddcbe76a689923b5002df19ade66787b1400a0aa2ab20aac0b73ef60184e852"
+    },
+    "discovery-coach.toml": {
+      "source": "sales/sales-discovery-coach.md",
+      "name": "Discovery Coach",
+      "sha256": "7e1e78611178ad2e4a09c2d717069dc79cc443bd33ad8c2fb218bf3b64b5cc63"
+    },
+    "document-generator.toml": {
+      "source": "specialized/specialized-document-generator.md",
+      "name": "Document Generator",
+      "sha256": "6556b3df670bd35af496580bbde2e74f41170d78aa0abc9e2f2502de5480ac1a"
+    },
+    "douyin-strategist.toml": {
+      "source": "marketing/marketing-douyin-strategist.md",
+      "name": "Douyin Strategist",
+      "sha256": "e58e4923d01d90c9c8f6c27633dc825624714e30b5ee8acf326cd4ba2a51ccfb"
+    },
+    "drone-reality-mapping-specialist.toml": {
+      "source": "gis/gis-drone-reality-mapping.md",
+      "name": "Drone/Reality Mapping Specialist",
+      "sha256": "94cb729a9bf7c06fb486b7e5b78a06c575e567a01c40065b73081b410557ef69"
+    },
+    "drupal-performance-engineer.toml": {
+      "source": "engineering/engineering-drupal-performance.md",
+      "name": "Drupal Performance Engineer",
+      "sha256": "656e82e203b406e3ad0e5949bc1aa0d694ffe88c400e5d117be0db0d695125ba"
+    },
+    "drupal-shopping-cart-engineer.toml": {
+      "source": "engineering/engineering-drupal-shopping-cart.md",
+      "name": "Drupal Shopping Cart Engineer",
+      "sha256": "01f9cf6d26fbc22156be3462ee37d587a033f54440f6fcd5dab0f5891a5830c4"
+    },
+    "dx-engineer.toml": {
+      "source": "product/product-dx-engineer.md",
+      "name": "DX Engineer",
+      "sha256": "4cc488fb28bca4d81a4dcbe79aecafe671e94ab86151c79d1cb5958e2195493e"
+    },
+    "economy-designer.toml": {
+      "source": "game-development/economy-designer.md",
+      "name": "Economy Designer",
+      "sha256": "dbd5a51f85c60dad38f628255a0bfa8deeeb1dd313a4cd7d0d2e85ba9602c8ec"
+    },
+    "electrical-engineer.toml": {
+      "source": "engineering/engineering-electrical-engineer.md",
+      "name": "Electrical Engineer",
+      "sha256": "285fc0995c49ec47944415decb74c570e310dbcee19098c3205314f8b2b0bb3a"
+    },
+    "email-intelligence-engineer.toml": {
+      "source": "engineering/engineering-email-intelligence-engineer.md",
+      "name": "Email Intelligence Engineer",
+      "sha256": "40a1ce906b82383f2ac73540b2e0fa2930a9f8016a97e32c197e69e23202dd20"
+    },
+    "email-marketing-strategist.toml": {
+      "source": "marketing/marketing-email-strategist.md",
+      "name": "Email Marketing Strategist",
+      "sha256": "b3dc70b923089c81cf4a513b590917e9b59f10e1a7dcb9dc92f583627bee701b"
+    },
+    "embedded-firmware-engineer.toml": {
+      "source": "engineering/engineering-embedded-firmware-engineer.md",
+      "name": "Embedded Firmware Engineer",
+      "sha256": "cf6f40be3beb72e003b47c0b5d184e1506b59fba93e7dd0374064ce3d64330ba"
+    },
+    "esg-sustainability-officer.toml": {
+      "source": "specialized/esg-sustainability-officer.md",
+      "name": "ESG & Sustainability Officer",
+      "sha256": "9b766c2efc92ab20737714ae0cee320849cb7386ffc2f4ce3f49b20e0aa3e39f"
+    },
+    "evidence-collector.toml": {
+      "source": "testing/testing-evidence-collector.md",
+      "name": "Evidence Collector",
+      "sha256": "9e57eb6fe22cf7196a94c088843bce42d1517ced9e7785e55bc51ba5d316fd72"
+    },
+    "executive-summary-generator.toml": {
+      "source": "support/support-executive-summary-generator.md",
+      "name": "Executive Summary Generator",
+      "sha256": "9af99e41994cc1838c5789d6a77cd740ef9c44117a5602f989b2ffc4c2bd4f2e"
+    },
+    "experiment-tracker.toml": {
+      "source": "project-management/project-management-experiment-tracker.md",
+      "name": "Experiment Tracker",
+      "sha256": "5aa0924576b24e9eb7f2054c7b90a2bbd9665d04678d428d62294b125ff416af"
+    },
+    "fedramp-rmf-compliance-engineer.toml": {
+      "source": "specialized/specialized-fedramp-rmf-compliance.md",
+      "name": "FedRAMP & RMF Compliance Engineer",
+      "sha256": "1bbbd175cc17f3b27e11f0c5bd4583722bf2c35db0e0bf5743788f68afffe503"
+    },
+    "feedback-synthesizer.toml": {
+      "source": "product/product-feedback-synthesizer.md",
+      "name": "Feedback Synthesizer",
+      "sha256": "06179c767b839b995d1deae9d8fb9d6f7a415611dd722e81d3f5913eeb62cf5d"
+    },
+    "feishu-integration-developer.toml": {
+      "source": "engineering/engineering-feishu-integration-developer.md",
+      "name": "Feishu Integration Developer",
+      "sha256": "78a71a9e6c81420d59b31bb9d0cea4c8752d3bdd01dc98294567cd5efe4c15fb"
+    },
+    "filament-optimization-specialist.toml": {
+      "source": "engineering/engineering-filament-optimization-specialist.md",
+      "name": "Filament Optimization Specialist",
+      "sha256": "41695c9fc0c2c53dfd57b9eff4dfd284c42a6e03e4505a58873f73125fa2cf3e"
+    },
+    "finance-tracker.toml": {
+      "source": "support/support-finance-tracker.md",
+      "name": "Finance Tracker",
+      "sha256": "f30f4f1a45752d876b1c7d706a53f04ca2277881232ee86d186feacb58503480"
+    },
+    "financial-analyst.toml": {
+      "source": "finance/finance-financial-analyst.md",
+      "name": "Financial Analyst",
+      "sha256": "0e294cb92c651e62d889923d934fa4b1d01135635bd0da179489a19936521f25"
+    },
+    "finops-engineer.toml": {
+      "source": "engineering/engineering-finops-engineer.md",
+      "name": "FinOps Engineer",
+      "sha256": "caaaa635323624edb882568e62c58bcdd90f471e4b4a6702273297f5c1e4b8ea"
+    },
+    "focus-music-architect.toml": {
+      "source": "specialized/specialized-focus-music-architect.md",
+      "name": "Focus Music Architect",
+      "sha256": "d6e3e745b0488cb41f47eed5248576fdf643cdd32ba9907f589cb065aaf21b1a"
+    },
+    "fp-a-analyst.toml": {
+      "source": "finance/finance-fpa-analyst.md",
+      "name": "FP&A Analyst",
+      "sha256": "52e04cfe747c935709f1834fadba3fbb47f2ac6b783981e7a10a28189933a652"
+    },
+    "french-consulting-market-navigator.toml": {
+      "source": "specialized/specialized-french-consulting-market.md",
+      "name": "French Consulting Market Navigator",
+      "sha256": "c828b70cf4689c142adb0db8d58afb1d44836d9846b92117ad5a8c6d6be4bd39"
+    },
+    "frontend-developer.toml": {
+      "source": "engineering/engineering-frontend-developer.md",
+      "name": "Frontend Developer",
+      "sha256": "f98f17ba3efa10ac6ac75422338a36795e1d43b39ba9e3bc6d6f520ea6472bd5"
+    },
+    "game-audio-engineer.toml": {
+      "source": "game-development/game-audio-engineer.md",
+      "name": "Game Audio Engineer",
+      "sha256": "ed81d928bbc6b204e94903e70927098f5fadf7252d8e97704b7575df6fe38166"
+    },
+    "game-designer.toml": {
+      "source": "game-development/game-designer.md",
+      "name": "Game Designer",
+      "sha256": "a1565bff1cf2389e22a6744849ab2e003deb669aa775ab67a4b513d08e4631d7"
+    },
+    "gaussdb-expert-engineer.toml": {
+      "source": "engineering/engineering-gaussdb-expert.md",
+      "name": "GaussDB Expert Engineer",
+      "sha256": "c9b08cf8a70a2ad0850865b24acc484f25bf57a88213f766dca9217c813735c7"
+    },
+    "geoai-ml-engineer.toml": {
+      "source": "gis/gis-geoai-ml-engineer.md",
+      "name": "GeoAI/ML Engineer",
+      "sha256": "b7f40b2bf2765bad015c2c7fd6d96bdaf97a7df4a70b02acdebcdedfdb69a012"
+    },
+    "geographer.toml": {
+      "source": "academic/academic-geographer.md",
+      "name": "Geographer",
+      "sha256": "952aabfd6fac2800587a8081b960f50659e4c47ed8f9062f30a13748ac651696"
+    },
+    "geoprocessing-specialist.toml": {
+      "source": "gis/gis-geoprocessing-specialist.md",
+      "name": "Geoprocessing Specialist",
+      "sha256": "697a2ba9ff5e9823f6d2cb9335021450c6f6ca88d39f57d0b26ab7e583d6c991"
+    },
+    "gis-analyst.toml": {
+      "source": "gis/gis-analyst.md",
+      "name": "GIS Analyst",
+      "sha256": "7e501afb7b5d05529c4acbeeac3b156969f04434ed51e61c1814bb2383b617f7"
+    },
+    "gis-qa-engineer.toml": {
+      "source": "gis/gis-qa-engineer.md",
+      "name": "GIS QA Engineer",
+      "sha256": "02071336f54a4eee4b7c8db9553c26748a50a4127b7b47cf609bf59578d1558c"
+    },
+    "git-workflow-master.toml": {
+      "source": "engineering/engineering-git-workflow-master.md",
+      "name": "Git Workflow Master",
+      "sha256": "f5fd371769904104c1fa30b8987d43cd8a40f17dfa361386e2e8d2313e57867a"
+    },
+    "global-podcast-strategist.toml": {
+      "source": "marketing/marketing-global-podcast-strategist.md",
+      "name": "Global Podcast Strategist",
+      "sha256": "aa0d2f7c9dba5d7364fa3be1847cb368c9b8975217696a0bf7db703d86450dab"
+    },
+    "godot-gameplay-scripter.toml": {
+      "source": "game-development/godot/godot-gameplay-scripter.md",
+      "name": "Godot Gameplay Scripter",
+      "sha256": "d8c774c540e735cef214a048fc5e1a4cd121ff729af44049319b6b551251c21e"
+    },
+    "godot-multiplayer-engineer.toml": {
+      "source": "game-development/godot/godot-multiplayer-engineer.md",
+      "name": "Godot Multiplayer Engineer",
+      "sha256": "c3f5735164fbf5cd27609c548de19d2ceb1ad524dcb54e0097bfda942bf5f177"
+    },
+    "godot-shader-developer.toml": {
+      "source": "game-development/godot/godot-shader-developer.md",
+      "name": "Godot Shader Developer",
+      "sha256": "66d029c2d5638921d426bd2411314b4c3a368a5945917049ffdf133e20d73f59"
+    },
+    "government-digital-presales-consultant.toml": {
+      "source": "specialized/government-digital-presales-consultant.md",
+      "name": "Government Digital Presales Consultant",
+      "sha256": "f0f041c9c9414c511d9159fb111abc1132046ce6284a80f7db77a26b3d3f475e"
+    },
+    "grant-writer.toml": {
+      "source": "specialized/grant-writer.md",
+      "name": "Grant Writer",
+      "sha256": "9aa0c1f34d8e02639681c0d3e429262a7f0341a8357d47131cd984abcf8cf79a"
+    },
+    "growth-hacker.toml": {
+      "source": "marketing/marketing-growth-hacker.md",
+      "name": "Growth Hacker",
+      "sha256": "d2bd022e6051a0d32412e619e3c49e46592a712fb6eed66fb7a62e944fc0a57a"
+    },
+    "healthcare-customer-service.toml": {
+      "source": "specialized/healthcare-customer-service.md",
+      "name": "Healthcare Customer Service",
+      "sha256": "4178945dbea39d8ad7e16cafd13fa1d792ecc2481ad2aec89426afbc57a79ce8"
+    },
+    "healthcare-innovation-strategist.toml": {
+      "source": "healthcare/healthcare-innovation-strategist.md",
+      "name": "Healthcare Innovation Strategist",
+      "sha256": "7246b52f78c9d36d1ab4d1ba946ca0357af7bcb816bdd34e4a4f039f87d82133"
+    },
+    "healthcare-marketing-compliance-specialist.toml": {
+      "source": "specialized/healthcare-marketing-compliance.md",
+      "name": "Healthcare Marketing Compliance Specialist",
+      "sha256": "be503d473969e33b44b5f393a7951b98df178160122e8b586f1a42df20845e23"
+    },
+    "historian.toml": {
+      "source": "academic/academic-historian.md",
+      "name": "Historian",
+      "sha256": "987e29c7a0fceb9e8f60fd8b791df93f75e218d3d3e97034f733b6392b10783e"
+    },
+    "hospitality-guest-services.toml": {
+      "source": "specialized/hospitality-guest-services.md",
+      "name": "Hospitality Guest Services",
+      "sha256": "c5022bdf1f7b3956feaaf48f381217ed81821e3775457c4df781844afd0b8655"
+    },
+    "hr-onboarding.toml": {
+      "source": "specialized/hr-onboarding.md",
+      "name": "HR Onboarding",
+      "sha256": "56eeade72080d477843133c0051e40482c3bde99a6b4da21253b50c0dfcc802e"
+    },
+    "identity-access-engineer.toml": {
+      "source": "engineering/engineering-identity-access-engineer.md",
+      "name": "Identity & Access Engineer",
+      "sha256": "afc1744942d6a87fe3563fc84580f529cc5d401361fa00581ef66d4f8bc65ac3"
+    },
+    "identity-graph-operator.toml": {
+      "source": "specialized/identity-graph-operator.md",
+      "name": "Identity Graph Operator",
+      "sha256": "e92cc062435ec3d4dc23a4fde6726364c08b4265498523c2803859e6f6a06558"
+    },
+    "image-prompt-engineer.toml": {
+      "source": "design/design-image-prompt-engineer.md",
+      "name": "Image Prompt Engineer",
+      "sha256": "b66ee4d5c5e9ccbe1deb3e49dabc1233dae4d068bcd87630b24567af6e2173e8"
+    },
+    "incident-responder.toml": {
+      "source": "security/security-incident-responder.md",
+      "name": "Incident Responder",
+      "sha256": "ba98399b2e05c2828de6d8839f595a58bd7e16457a59ad2ca2781515ef55600c"
+    },
+    "incident-response-commander.toml": {
+      "source": "engineering/engineering-incident-response-commander.md",
+      "name": "Incident Response Commander",
+      "sha256": "a4bee709283cb8ef5e5aea3f90933fa3f7565eb967e2f4a1880e582d1b97ef9d"
+    },
+    "inclusive-visuals-specialist.toml": {
+      "source": "design/design-inclusive-visuals-specialist.md",
+      "name": "Inclusive Visuals Specialist",
+      "sha256": "7502392f1150a82bb4216de4d17bc6b6aec731edd3956ffc5c17952bebc2f8bb"
+    },
+    "infrastructure-maintainer.toml": {
+      "source": "support/support-infrastructure-maintainer.md",
+      "name": "Infrastructure Maintainer",
+      "sha256": "95a58b574675fddca6abba246eea01b0e22f9672fde5ba83f6b2decb47379f40"
+    },
+    "instagram-curator.toml": {
+      "source": "marketing/marketing-instagram-curator.md",
+      "name": "Instagram Curator",
+      "sha256": "3de4a109a698bb23cf3f24755d57cb7e81c9fa0202aef98c4f6fc84bc03cc152"
+    },
+    "internationalization-engineer.toml": {
+      "source": "engineering/engineering-i18n-engineer.md",
+      "name": "Internationalization Engineer",
+      "sha256": "00fdb226443e6d582e02fce6396dcfee632b2c00a8309d670a20cebda8263021"
+    },
+    "investment-researcher.toml": {
+      "source": "finance/finance-investment-researcher.md",
+      "name": "Investment Researcher",
+      "sha256": "2c43f3fff33bf3d1196d0b63f3546cbe07450d337f9be6c759ef879146dc2953"
+    },
+    "iot-fleet-engineer.toml": {
+      "source": "engineering/engineering-iot-fleet-engineer.md",
+      "name": "IoT Fleet Engineer",
+      "sha256": "c94bddb02125efab4bdb5533a977dfe26695ea241e30413ef52a86b12209ed46"
+    },
+    "it-service-manager.toml": {
+      "source": "engineering/engineering-it-service-manager.md",
+      "name": "IT Service Manager",
+      "sha256": "cefa7fc4616defc7677bf0136eb248735c344d514d0fbd53ccdfcb022dded04c"
+    },
+    "jira-workflow-steward.toml": {
+      "source": "project-management/project-management-jira-workflow-steward.md",
+      "name": "Jira Workflow Steward",
+      "sha256": "8c44c99e132139ad99ef0ae6ec38d24e62c564f28c6a47016feda207ebfc618d"
+    },
+    "knowledge-graph-engineer.toml": {
+      "source": "engineering/engineering-knowledge-graph-engineer.md",
+      "name": "Knowledge Graph Engineer",
+      "sha256": "95fa5e5fa07306719077987437e013ad7bc3e5db829dab9c1c32f8dcaa152fd8"
+    },
+    "korean-business-navigator.toml": {
+      "source": "specialized/specialized-korean-business-navigator.md",
+      "name": "Korean Business Navigator",
+      "sha256": "30aef9264af8c9df6970d4f4e4f5788e490b0b7dc6e15984ea7a13196ac686bd"
+    },
+    "kuaishou-strategist.toml": {
+      "source": "marketing/marketing-kuaishou-strategist.md",
+      "name": "Kuaishou Strategist",
+      "sha256": "83537bcbf28d5bba77bd8dc31f4736ee613d10c3cf506d85a3418548a01830ca"
+    },
+    "language-translator.toml": {
+      "source": "specialized/language-translator.md",
+      "name": "Language Translator",
+      "sha256": "6dce5d9484bbcb90f79262282c8aec9bde4202e8796a4578f44cc2d0df3c92a0"
+    },
+    "legal-billing-time-tracking.toml": {
+      "source": "specialized/legal-billing-time-tracking.md",
+      "name": "Legal Billing & Time Tracking",
+      "sha256": "f68bccc436963756c687999521ce66cc2c6d4bd6769925879204298a2c41ce2a"
+    },
+    "legal-client-intake.toml": {
+      "source": "specialized/legal-client-intake.md",
+      "name": "Legal Client Intake",
+      "sha256": "58b53e9a58cff336fe8ad6c9faaca4d9b98679d9a9cf452c6606ba57d74f2db2"
+    },
+    "legal-compliance-checker.toml": {
+      "source": "support/support-legal-compliance-checker.md",
+      "name": "Legal Compliance Checker",
+      "sha256": "99e7220a0e31cb53592cf17f4d932c6f5af4a451eb0d7a96657cd7cfc33d1ffd"
+    },
+    "legal-document-review.toml": {
+      "source": "specialized/legal-document-review.md",
+      "name": "Legal Document Review",
+      "sha256": "627bb56e47eff9855cf07bc4706b974c8f1ab5c5f2578d80e3400e907cf17a9d"
+    },
+    "level-designer.toml": {
+      "source": "game-development/level-designer.md",
+      "name": "Level Designer",
+      "sha256": "9248b7fb791aaad35cf9add642fd7350275df0d012301ceb24bb69ed7461c7d9"
+    },
+    "linkedin-content-creator.toml": {
+      "source": "marketing/marketing-linkedin-content-creator.md",
+      "name": "LinkedIn Content Creator",
+      "sha256": "70fbb7e6a21ed5934ec8686d89219072b91af83c749283bb7055bf15d54420b0"
+    },
+    "livestream-commerce-coach.toml": {
+      "source": "marketing/marketing-livestream-commerce-coach.md",
+      "name": "Livestream Commerce Coach",
+      "sha256": "c84157160c91166b80f797aea180156a91b455c5a58d25e3e623c70388098dd7"
+    },
+    "llm-post-training-engineer.toml": {
+      "source": "engineering/engineering-llm-post-training-engineer.md",
+      "name": "LLM Post-Training Engineer",
+      "sha256": "a02be5d68890a7c46e0a0b9a4e4e9c7363e2962030c458a817e2e75c685663eb"
+    },
+    "loan-officer-assistant.toml": {
+      "source": "specialized/loan-officer-assistant.md",
+      "name": "Loan Officer Assistant",
+      "sha256": "e25e8657d9b5ccb9a93d114a370901c4f3ff6c05c0375054fbf3e3b63986ff6d"
+    },
+    "lsp-index-engineer.toml": {
+      "source": "specialized/lsp-index-engineer.md",
+      "name": "LSP/Index Engineer",
+      "sha256": "08f5e8cb435a1c3742f0e1d82974206398c209575d12e58959de94f59ab28583"
+    },
+    "m-a-integration-manager.toml": {
+      "source": "specialized/ma-integration-manager.md",
+      "name": "M&A Integration Manager",
+      "sha256": "713b336d402aa019538ba9ab72478db65e2135a1d1d7e0e0311ab1482db66170"
+    },
+    "macos-spatial-metal-engineer.toml": {
+      "source": "spatial-computing/macos-spatial-metal-engineer.md",
+      "name": "macOS Spatial/Metal Engineer",
+      "sha256": "4d549ecc06d258d1d8456d39bd38f56a18a89f7bc21e738549320a90e27e8067"
+    },
+    "master-plan-architect.toml": {
+      "source": "specialized/specialized-master-plan-architect.md",
+      "name": "Master Plan Architect",
+      "sha256": "3afb05d661b7957b87ac4eba30f5d3e5dfd30b0e231e14b4e24f777c4f7e2d76"
+    },
+    "mcp-builder.toml": {
+      "source": "specialized/specialized-mcp-builder.md",
+      "name": "MCP Builder",
+      "sha256": "d311d04bc8c4791ed20943b4c5ce49555230311724a1b1209a249714d0c1547f"
+    },
+    "medical-billing-coding-specialist.toml": {
+      "source": "specialized/medical-billing-coding-specialist.md",
+      "name": "Medical Billing & Coding Specialist",
+      "sha256": "8e8fa69cc80c3a66e294c85882c7fc29c10323447c09a82a28d5e1d5d806adfc"
+    },
+    "meeting-notes-specialist.toml": {
+      "source": "project-management/project-management-meeting-notes-specialist.md",
+      "name": "Meeting Notes Specialist",
+      "sha256": "6023d70e42ec6f534813a8dbb8df61020b2662810f6b5e6da7bf927fed599ca3"
+    },
+    "minimal-change-engineer.toml": {
+      "source": "engineering/engineering-minimal-change-engineer.md",
+      "name": "Minimal Change Engineer",
+      "sha256": "5873d6e5b8ae5aafbaf785d4f2e9d2a9065fac7f32acf6a4f26e51186f4fd09b"
+    },
+    "mobile-app-builder.toml": {
+      "source": "engineering/engineering-mobile-app-builder.md",
+      "name": "Mobile App Builder",
+      "sha256": "cdc2619fa9ff13d26445793e7a73fac54b61b4edfbbc4d0131a0748172cc82a0"
+    },
+    "mobile-release-engineer.toml": {
+      "source": "engineering/engineering-mobile-release-engineer.md",
+      "name": "Mobile Release Engineer",
+      "sha256": "8e43596c80cc61e310398cd409bf300fd946a7f720633b7d730639f294f3afde"
+    },
+    "model-qa-specialist.toml": {
+      "source": "specialized/specialized-model-qa.md",
+      "name": "Model QA Specialist",
+      "sha256": "94c450d2006cf5f5716427f68d60a64872f22b818dcb70f335ff028eb7239ecd"
+    },
+    "multi-agent-systems-architect.toml": {
+      "source": "engineering/engineering-multi-agent-systems-architect.md",
+      "name": "Multi-Agent Systems Architect",
+      "sha256": "ae9119f414875afef3dc6162b1e9973e24526b4a0a2e77d61bc9a0a58afbe001"
+    },
+    "multi-platform-publisher.toml": {
+      "source": "marketing/marketing-multi-platform-publisher.md",
+      "name": "Multi-Platform Publisher",
+      "sha256": "ecda90313bdb42179a4d9a0ae0e0e1bcf01c23baea950ccf6e58bab3b74b6d3b"
+    },
+    "narrative-designer.toml": {
+      "source": "game-development/narrative-designer.md",
+      "name": "Narrative Designer",
+      "sha256": "f80e5eec8112fbfc3a14d2ee705581a2d6997ae48c0029b5ac461c03b374fd19"
+    },
+    "narratologist.toml": {
+      "source": "academic/academic-narratologist.md",
+      "name": "Narratologist",
+      "sha256": "807fa94b4655bde718ce82845f98a75450bf0c8d37512a2365150eedb160dea2"
+    },
+    "network-engineer.toml": {
+      "source": "engineering/engineering-network-engineer.md",
+      "name": "Network Engineer",
+      "sha256": "32c8ebf1bdfe6c8d6a498200af4fa839aab54a91df9355d2964403ad0dfd9627"
+    },
+    "offer-lead-gen-strategist.toml": {
+      "source": "sales/sales-offer-lead-gen-strategist.md",
+      "name": "Offer & Lead Gen Strategist",
+      "sha256": "40f128e37f364ccbab2ba617279bac11adfaebe4ce1c204c002de79ff1d8ded9"
+    },
+    "operations-manager.toml": {
+      "source": "specialized/operations-manager.md",
+      "name": "Operations Manager",
+      "sha256": "291080bcdc2e7c7935b384c172ea2b8150c85e1658a08c034b80a39ac380dd2d"
+    },
+    "organizational-psychologist.toml": {
+      "source": "specialized/organizational-psychologist.md",
+      "name": "Organizational Psychologist",
+      "sha256": "3cd6f1bdda10345ccb1c489d9af26a57fbd19f73a476368a6558538e7eff6ffd"
+    },
+    "orgscript-engineer.toml": {
+      "source": "engineering/engineering-orgscript-engineer.md",
+      "name": "OrgScript Engineer",
+      "sha256": "1ffcf5b71e0cd0c6aedda72328045eb024771cccda8873eb0eee95943bdeaec3"
+    },
+    "outbound-strategist.toml": {
+      "source": "sales/sales-outbound-strategist.md",
+      "name": "Outbound Strategist",
+      "sha256": "037fd073407366e3e36b8168b30200d65ef2921df06db151180884728d93bbc6"
+    },
+    "paid-media-auditor.toml": {
+      "source": "paid-media/paid-media-auditor.md",
+      "name": "Paid Media Auditor",
+      "sha256": "b0d6ef2d07e2f10009af6b5512c26a9149b6dd2838e6ffa4005b0d4914d9546d"
+    },
+    "paid-social-strategist.toml": {
+      "source": "paid-media/paid-media-paid-social-strategist.md",
+      "name": "Paid Social Strategist",
+      "sha256": "de9422f6b111d885fc58b0fb145b1a94d406889ae5944ff23466892d3ccd17a2"
+    },
+    "payments-billing-engineer.toml": {
+      "source": "engineering/engineering-payments-billing-engineer.md",
+      "name": "Payments & Billing Engineer",
+      "sha256": "e1cd51337f7a6e0494fc483f70ad176644131ffc2ea3aa7adef6999ef3a9afac"
+    },
+    "pdf-engine-architect.toml": {
+      "source": "engineering/engineering-pdf-engine-architect.md",
+      "name": "PDF Engine Architect",
+      "sha256": "adf95094e541d97e8dfe417d7a21455dfaca9387e6a7911cee4d3bfab600cb99"
+    },
+    "penetration-tester.toml": {
+      "source": "security/security-penetration-tester.md",
+      "name": "Penetration Tester",
+      "sha256": "c1bbdc46a8c868801b48cd0a011059157f98ea8a04ca4cc4e23e2d7b2c142433"
+    },
+    "performance-benchmarker.toml": {
+      "source": "testing/testing-performance-benchmarker.md",
+      "name": "Performance Benchmarker",
+      "sha256": "25a0f6259e7641d7fd83fc354cc3f389128ff4f5053bee969ef4a7094847c501"
+    },
+    "persona-walkthrough-specialist.toml": {
+      "source": "design/design-persona-walkthrough.md",
+      "name": "Persona Walkthrough Specialist",
+      "sha256": "6c8a230c28859c6b99943b53e8257f285417ebbb4b137f0f6bbdeb42197e086c"
+    },
+    "personal-growth-mentor.toml": {
+      "source": "specialized/personal-growth-mentor.md",
+      "name": "Personal Growth Mentor",
+      "sha256": "a18fb88587dcd788405358668694d2004929c644aef89b6184a21c8e90a0e934"
+    },
+    "pipeline-analyst.toml": {
+      "source": "sales/sales-pipeline-analyst.md",
+      "name": "Pipeline Analyst",
+      "sha256": "831691810a2d957b496669df015fdce8c3161f8b806c6d9f15b4e2f2e0540a0a"
+    },
+    "platform-engineer.toml": {
+      "source": "engineering/engineering-platform-engineer.md",
+      "name": "Platform Engineer",
+      "sha256": "c01257a0fa69eb8e7eeca1f443dca455e9778d239e2877258ae6d2759ddab316"
+    },
+    "podcast-strategist.toml": {
+      "source": "marketing/marketing-podcast-strategist.md",
+      "name": "Podcast Strategist",
+      "sha256": "a250e34482bcb5902505c9966c565250a89317fe7e1bc4f59228ea62fd5197e5"
+    },
+    "ppc-campaign-strategist.toml": {
+      "source": "paid-media/paid-media-ppc-strategist.md",
+      "name": "PPC Campaign Strategist",
+      "sha256": "c8b80c6f3f61bd5a6658467214a3045c2bc307abbb4d575b6154fd761dd1660b"
+    },
+    "pr-communications-manager.toml": {
+      "source": "marketing/marketing-pr-communications-manager.md",
+      "name": "PR & Communications Manager",
+      "sha256": "23a6659bf48727925177d559667aae9b6b08ac401acf6989ab4e1b000c92e775"
+    },
+    "pricing-analyst.toml": {
+      "source": "specialized/specialized-pricing-analyst.md",
+      "name": "Pricing Analyst",
+      "sha256": "aa93c470b1e7e54028b358b95ee4aaeaf9189bbeb3bbe197354cb565aa4b0479"
+    },
+    "privacy-engineer.toml": {
+      "source": "engineering/engineering-privacy-engineer.md",
+      "name": "Privacy Engineer",
+      "sha256": "e4424716b7047dbb09c8a4e14f2233e8f70138b9d150d419f32dd7d1c49e1aab"
+    },
+    "private-domain-operator.toml": {
+      "source": "marketing/marketing-private-domain-operator.md",
+      "name": "Private Domain Operator",
+      "sha256": "2d44f3fb6435c2053429b9b9edb99d85a2880c03eec81f9f5bc2c878d0fd6489"
+    },
+    "product-manager.toml": {
+      "source": "product/product-manager.md",
+      "name": "Product Manager",
+      "sha256": "e2e08d900c4ae7f6191d234a6ff4c980a38d8d92fbd7209252f7f8666b5711f8"
+    },
+    "programmatic-display-buyer.toml": {
+      "source": "paid-media/paid-media-programmatic-buyer.md",
+      "name": "Programmatic & Display Buyer",
+      "sha256": "9c76a764b0c75ab13a0d21b951c9420038e286abe48aca5d68f49506a6bec23e"
+    },
+    "project-shepherd.toml": {
+      "source": "project-management/project-management-project-shepherd.md",
+      "name": "Project Shepherd",
+      "sha256": "66b7cf1c98522110225639654f93ea0bb9709574ffd70d26974afa656a2f5ed6"
+    },
+    "prompt-engineer.toml": {
+      "source": "engineering/engineering-prompt-engineer.md",
+      "name": "Prompt Engineer",
+      "sha256": "f90af9ea3f883d82142f83683dc0f62518d1559f2daed694e3bac998600590c2"
+    },
+    "proposal-strategist.toml": {
+      "source": "sales/sales-proposal-strategist.md",
+      "name": "Proposal Strategist",
+      "sha256": "9012beeda9681bd3b2f5c25349178312e0ee05bd4b55e8a9985d0909c82cc666"
+    },
+    "psychologist.toml": {
+      "source": "academic/academic-psychologist.md",
+      "name": "Psychologist",
+      "sha256": "001fdd6fdb0ec48afd2fdb9345ed9533dee4fb7ec0cb76483b5c975b524eed90"
+    },
+    "rag-pipeline-engineer.toml": {
+      "source": "engineering/engineering-rag-pipeline-engineer.md",
+      "name": "RAG Pipeline Engineer",
+      "sha256": "e0a14055aae91c5067cad61d41c46a8cb87af47ee554ca5889c2a633ce35a619"
+    },
+    "rapid-prototyper.toml": {
+      "source": "engineering/engineering-rapid-prototyper.md",
+      "name": "Rapid Prototyper",
+      "sha256": "71199ccee3ea74ff8f1ab8c4fff329275c17f785cbf96daa0c66a9422e32f9ed"
+    },
+    "real-estate-buyer-seller.toml": {
+      "source": "specialized/real-estate-buyer-seller.md",
+      "name": "Real Estate Buyer & Seller",
+      "sha256": "ac53355f112fafc8c4cddba1b929a2cad1e4c4179cd86fa1ca1bcfd3d6c0fb20"
+    },
+    "reality-checker.toml": {
+      "source": "testing/testing-reality-checker.md",
+      "name": "Reality Checker",
+      "sha256": "0eef38abe35b62ce9e82d1ab70f2e95ce810bbb1a3e184939ccd5889cdfde292"
+    },
+    "realtime-collaboration-engineer.toml": {
+      "source": "engineering/engineering-realtime-collaboration-engineer.md",
+      "name": "Realtime Collaboration Engineer",
+      "sha256": "ba919e9964307adeae1ea75f2085a007f5ffba66bda5727f876e3a4b74315dfd"
+    },
+    "recruitment-specialist.toml": {
+      "source": "specialized/recruitment-specialist.md",
+      "name": "Recruitment Specialist",
+      "sha256": "b5906ca9a2a4038d9d6bfeed145051380483fda0af060dc80d26fd1a4a8bdf57"
+    },
+    "reddit-community-builder.toml": {
+      "source": "marketing/marketing-reddit-community-builder.md",
+      "name": "Reddit Community Builder",
+      "sha256": "262b8b11db05fe3d8967332b6c066dc9df0320099ec33e17fc97e8e91577a86e"
+    },
+    "report-distribution-agent.toml": {
+      "source": "specialized/report-distribution-agent.md",
+      "name": "Report Distribution Agent",
+      "sha256": "f0cb7424e26e80b76e11d759279b89ba7475bfa2c9405e20c35eb7056be24349"
+    },
+    "research-synthesist.toml": {
+      "source": "research/research-synthesist.md",
+      "name": "Research Synthesist",
+      "sha256": "95640c34667b5bc3f482e93c35b25aab7683057169b3c78a010bb1cd6cbfcdb1"
+    },
+    "resume-tailor.toml": {
+      "source": "specialized/resume-tailor.md",
+      "name": "Resume Tailor",
+      "sha256": "3bd41d72ddbbbdf9bd62b4311bedf63f85f283937577ff2d0d99fde5ac214e02"
+    },
+    "retail-customer-returns.toml": {
+      "source": "specialized/retail-customer-returns.md",
+      "name": "Retail Customer Returns",
+      "sha256": "4b9860904563664c22106ff5f144097559e7b08aa84a29d6120265efbc8cd092"
+    },
+    "roblox-avatar-creator.toml": {
+      "source": "game-development/roblox-studio/roblox-avatar-creator.md",
+      "name": "Roblox Avatar Creator",
+      "sha256": "af27911c90e6c40eb30590e6ad5c4c712ce3e0d09e1da91cdcfc9f340f9043f3"
+    },
+    "roblox-experience-designer.toml": {
+      "source": "game-development/roblox-studio/roblox-experience-designer.md",
+      "name": "Roblox Experience Designer",
+      "sha256": "db7f0b294cd6b6391d9b976dd9f1b5f6bada9c87aa648e3fe9556c7c6af02186"
+    },
+    "roblox-systems-scripter.toml": {
+      "source": "game-development/roblox-studio/roblox-systems-scripter.md",
+      "name": "Roblox Systems Scripter",
+      "sha256": "ab0eeef90c0a69312528955b9ced924f4dbdb65921b1c8407fbf28106d4fb1ee"
+    },
+    "rust-refactoring-specialist.toml": {
+      "source": "engineering/engineering-rust-refactoring-specialist.md",
+      "name": "Rust Refactoring Specialist",
+      "sha256": "2fc1b81dabe8ee85e7941c7ee69e61e48765a63d6bba1e8c2256ff94534b32ff"
+    },
+    "sales-coach.toml": {
+      "source": "sales/sales-coach.md",
+      "name": "Sales Coach",
+      "sha256": "7806136af1a9e92265a3381459ee1f9421fd14f3fdb7b59b3bd7a1dd6d68586b"
+    },
+    "sales-data-extraction-agent.toml": {
+      "source": "specialized/sales-data-extraction-agent.md",
+      "name": "Sales Data Extraction Agent",
+      "sha256": "a296b5446612a79aa9f4c300c8b76309cd1725b726684110b48f35d69d90e950"
+    },
+    "sales-engineer.toml": {
+      "source": "sales/sales-engineer.md",
+      "name": "Sales Engineer",
+      "sha256": "1d53c19099be672bf5447aed229ba8e56aa36fa13a097d59f4fd72e348f9446c"
+    },
+    "sales-outreach.toml": {
+      "source": "specialized/sales-outreach.md",
+      "name": "Sales Outreach",
+      "sha256": "5e8335e66e2116e6d46c87332d8ce8d81e2a10b1d865f48e69577c7212f2cf9c"
+    },
+    "salesforce-architect.toml": {
+      "source": "specialized/specialized-salesforce-architect.md",
+      "name": "Salesforce Architect",
+      "sha256": "7da6f234ddcd8364fcaefe0a01b84d7f8162c0fd524fecac5c998c24e262ae35"
+    },
+    "search-query-analyst.toml": {
+      "source": "paid-media/paid-media-search-query-analyst.md",
+      "name": "Search Query Analyst",
+      "sha256": "0380124a98288bd791aee21c27b59e88248f5435e80224586e5851f246b06a9f"
+    },
+    "search-relevance-engineer.toml": {
+      "source": "engineering/engineering-search-relevance-engineer.md",
+      "name": "Search Relevance Engineer",
+      "sha256": "876088e5fc018e2c67985a9e77d23ce1a7c5648bce1f68524a59a730b5c94fa0"
+    },
+    "secrets-credential-hygiene-engineer.toml": {
+      "source": "security/security-secrets-credential-engineer.md",
+      "name": "Secrets & Credential Hygiene Engineer",
+      "sha256": "52ddf19c8d2c3733cd9bfee40e9d89ca18ca39987cd5ab5a6dcd1d6fec493210"
+    },
+    "section-508-accessibility-specialist.toml": {
+      "source": "engineering/engineering-section-508-specialist.md",
+      "name": "Section 508 Accessibility Specialist",
+      "sha256": "f6283c97980dc52b84929431599826562057ee84428b7dc31dcf52efb144b880"
+    },
+    "security-architect.toml": {
+      "source": "security/security-architect.md",
+      "name": "Security Architect",
+      "sha256": "900c606b24d8a4ab92096355e4198cd712d10d6600d58d1d2940f9f29b98d4a6"
+    },
+    "senior-developer.toml": {
+      "source": "engineering/engineering-senior-developer.md",
+      "name": "Senior Developer",
+      "sha256": "7004a73245783536f51dbb2646ba36c36780bbfc720fc836a6384e317e9797ba"
+    },
+    "senior-project-manager.toml": {
+      "source": "project-management/project-manager-senior.md",
+      "name": "Senior Project Manager",
+      "sha256": "e145c0a56cac4d85411502aaf14ac517393832806181eae140aee3a4c3d256e8"
+    },
+    "senior-secops-engineer.toml": {
+      "source": "security/security-senior-secops.md",
+      "name": "Senior SecOps Engineer",
+      "sha256": "10dc78c0738948c1cc47d63eb4711d56d219130f369e78c17e4e82cdff589bfd"
+    },
+    "seo-specialist.toml": {
+      "source": "marketing/marketing-seo-specialist.md",
+      "name": "SEO Specialist",
+      "sha256": "028276a8e2b3a2da49924e9c0ff566166c7349b0c2b706146c0a5045a31d7354"
+    },
+    "servicenow-developer-mentor.toml": {
+      "source": "engineering/engineering-servicenow-developer-mentor.md",
+      "name": "ServiceNow Developer & Mentor",
+      "sha256": "6c7cf86262bc39e65f994bde28c2147f682321f8f48cbdb1e88ea4f59d49de5e"
+    },
+    "short-video-editing-coach.toml": {
+      "source": "marketing/marketing-short-video-editing-coach.md",
+      "name": "Short-Video Editing Coach",
+      "sha256": "ffffb667eef21ce02c7524c9ccbf295370851248c8d40312b8d63c7d2252ed89"
+    },
+    "social-media-strategist.toml": {
+      "source": "marketing/marketing-social-media-strategist.md",
+      "name": "Social Media Strategist",
+      "sha256": "9c278cc65744c3449ed1c1aaf1ba297f17613e3962565846587f679392614ef2"
+    },
+    "software-architect.toml": {
+      "source": "engineering/engineering-software-architect.md",
+      "name": "Software Architect",
+      "sha256": "dec3e4de3fdbac219d2d1420be7c40fd98fdd241b887ee74fcbde80e5ffdcd2a"
+    },
+    "solidity-smart-contract-engineer.toml": {
+      "source": "engineering/engineering-solidity-smart-contract-engineer.md",
+      "name": "Solidity Smart Contract Engineer",
+      "sha256": "06f25ac7e6d5aa1be2dc545d8eba2ffa2010e9f4003c5b437c4f524630f9f9fe"
+    },
+    "solution-engineer.toml": {
+      "source": "gis/gis-solution-engineer.md",
+      "name": "Solution Engineer",
+      "sha256": "2d8f4dc29bafc0d01a3802fbcd5df3c745e573f37673b7b3c60b597046498ad6"
+    },
+    "sovereign-health-systems-agent.toml": {
+      "source": "healthcare/healthcare-sovereign-health-systems-agent.md",
+      "name": "Sovereign Health Systems Agent",
+      "sha256": "941eac2f5d4381f61144746ec75623b98950ec9d256e58e54b6228a085c7d013"
+    },
+    "spatial-data-engineer.toml": {
+      "source": "gis/gis-spatial-data-engineer.md",
+      "name": "Spatial Data Engineer",
+      "sha256": "74eaa63aeb412150768309bfcf2833d83965cfc551a124e1ee5da665c4182f02"
+    },
+    "spatial-data-scientist.toml": {
+      "source": "gis/gis-spatial-data-scientist.md",
+      "name": "Spatial Data Scientist",
+      "sha256": "22df511955332077f7fc1de2b33c418d031e97ff0e857b40dfe9194cec4423d1"
+    },
+    "sprint-prioritizer.toml": {
+      "source": "product/product-sprint-prioritizer.md",
+      "name": "Sprint Prioritizer",
+      "sha256": "2f21f4ab56d86b1389a72144aef3d89b4b512ada7dd3d1d5d663ead340b1ec87"
+    },
+    "sre-site-reliability-engineer.toml": {
+      "source": "engineering/engineering-sre.md",
+      "name": "SRE (Site Reliability Engineer)",
+      "sha256": "a5ee075aa2a49d57b9ffbaa2b00c42efa0d19e7d803d1b15389a025ccd00e669"
+    },
+    "statistician.toml": {
+      "source": "academic/academic-statistician.md",
+      "name": "Statistician",
+      "sha256": "b7ae9856fc5ff88e09cd2bf35a9e368eb7fd22ff9ad4625b5c17e7e29f6fdee8"
+    },
+    "strategy-duel-agent.toml": {
+      "source": "specialized/specialized-strategy-duel-agent.md",
+      "name": "Strategy Duel Agent",
+      "sha256": "01e7a320a58b701fa385ea221b46ac74f2ad35dba43c22be720bd46056b79c2f"
+    },
+    "studio-operations.toml": {
+      "source": "project-management/project-management-studio-operations.md",
+      "name": "Studio Operations",
+      "sha256": "caf617933c6f1c34bf5ee094ad48bda9afd9d143f0809dbbb62433bd8ddf09d6"
+    },
+    "studio-producer.toml": {
+      "source": "project-management/project-management-studio-producer.md",
+      "name": "Studio Producer",
+      "sha256": "f4e7c621f3fbe3278cdd2ab4302113f76dbe993c92047078e0a1e05edf33c37d"
+    },
+    "study-abroad-advisor.toml": {
+      "source": "specialized/study-abroad-advisor.md",
+      "name": "Study Abroad Advisor",
+      "sha256": "0a1aa3e5a6201770e2f85e44c3088baa852dc307eeb2f99fa67e5c246ed33338"
+    },
+    "supply-chain-strategist.toml": {
+      "source": "specialized/supply-chain-strategist.md",
+      "name": "Supply Chain Strategist",
+      "sha256": "276c84356409c24540194f38a86df06929d3b88aab3b5c19edc6d7dcfdb40eaa"
+    },
+    "support-responder.toml": {
+      "source": "support/support-support-responder.md",
+      "name": "Support Responder",
+      "sha256": "7e898dd3eef926e5d80f4bd7477f10455da9376e451cbb4bdbe6c0ca65b4abc5"
+    },
+    "tax-strategist.toml": {
+      "source": "finance/finance-tax-strategist.md",
+      "name": "Tax Strategist",
+      "sha256": "0967e75dbadd7a4dad4f1089efe153ea1d6de7f8da828da9215eb0df8721e569"
+    },
+    "technical-artist.toml": {
+      "source": "game-development/technical-artist.md",
+      "name": "Technical Artist",
+      "sha256": "d2e59cb08f342a33a274731d2195855b14ac32a7194d148ee7b1dfd04af31740"
+    },
+    "technical-consultant.toml": {
+      "source": "gis/gis-technical-consultant.md",
+      "name": "Technical Consultant",
+      "sha256": "fc9a6e286c05b604a7e8082438db26ae4de8403f4983b18aceb76a3dc8b4d2f4"
+    },
+    "technical-writer.toml": {
+      "source": "engineering/engineering-technical-writer.md",
+      "name": "Technical Writer",
+      "sha256": "4b5d231dded877a52d9fb7d00f7f0d98fed56c5168b90525d69b1860f4cdd3c8"
+    },
+    "terminal-integration-specialist.toml": {
+      "source": "spatial-computing/terminal-integration-specialist.md",
+      "name": "Terminal Integration Specialist",
+      "sha256": "728d94f636560c0c2b99a99d0578841d23e296c8e77fa7849c6a8311fc03afd9"
+    },
+    "test-automation-engineer.toml": {
+      "source": "testing/testing-test-automation-engineer.md",
+      "name": "Test Automation Engineer",
+      "sha256": "cdaaf61b261ed4ae80b2392a438beb7276f748f22c50cacfba496d4e4344664f"
+    },
+    "test-results-analyzer.toml": {
+      "source": "testing/testing-test-results-analyzer.md",
+      "name": "Test Results Analyzer",
+      "sha256": "2d7ac05440cf60b88eebbcc148e9b65e0b49ac14823508287e180f2eff1c82e1"
+    },
+    "threat-detection-engineer.toml": {
+      "source": "security/security-threat-detection-engineer.md",
+      "name": "Threat Detection Engineer",
+      "sha256": "cbe3cf1ace04d007329058ddcb3ddb73108c2bbfba3b66b36f2afc8d278cd5b0"
+    },
+    "threat-intelligence-analyst.toml": {
+      "source": "security/security-threat-intelligence-analyst.md",
+      "name": "Threat Intelligence Analyst",
+      "sha256": "e31aaeaa223012ee8a744074c110fdeb9f4a716f95ab6d05e185a428f1655600"
+    },
+    "tiktok-strategist.toml": {
+      "source": "marketing/marketing-tiktok-strategist.md",
+      "name": "TikTok Strategist",
+      "sha256": "522023af35bc62003a0db869246eabb57b5a5724358576b71ca9d03c9ba614a1"
+    },
+    "tool-evaluator.toml": {
+      "source": "testing/testing-tool-evaluator.md",
+      "name": "Tool Evaluator",
+      "sha256": "1e2c10e97447aadab42125e13fa79f215c2fcd9f31c09a02a2ec5b80e084a91f"
+    },
+    "tracking-measurement-specialist.toml": {
+      "source": "paid-media/paid-media-tracking-specialist.md",
+      "name": "Tracking & Measurement Specialist",
+      "sha256": "a51238e1fb04aa578473e4fce5df85af2288c19a5548b72f892c4c712e7f54e9"
+    },
+    "trend-researcher.toml": {
+      "source": "product/product-trend-researcher.md",
+      "name": "Trend Researcher",
+      "sha256": "ffd4fff41dd2e375247a383097a40358956466c583b88a9ff7da0eb60d376606"
+    },
+    "twitter-engager.toml": {
+      "source": "marketing/marketing-twitter-engager.md",
+      "name": "Twitter Engager",
+      "sha256": "23ad2ce8fb665edd976c79ed11f46e4a035ae606ecdb6df0436d3e73bff8225f"
+    },
+    "ui-designer.toml": {
+      "source": "design/design-ui-designer.md",
+      "name": "UI Designer",
+      "sha256": "3cdf149facb7059f1f4ef9a9900c87b0c24d905d20c207e35b1d59e65ce60c81"
+    },
+    "ui-finish-gate-reviewer.toml": {
+      "source": "design/design-ui-finish-gate-reviewer.md",
+      "name": "UI Finish-Gate Reviewer",
+      "sha256": "64537184f826d7577af0bbc7b4898f4148f27e96d800185c2706ce944c45168f"
+    },
+    "unity-architect.toml": {
+      "source": "game-development/unity/unity-architect.md",
+      "name": "Unity Architect",
+      "sha256": "ecd8e9dc88603de1c5c8bd91cd4147b871999e804a685909f0a17d9a1e8f7b02"
+    },
+    "unity-editor-tool-developer.toml": {
+      "source": "game-development/unity/unity-editor-tool-developer.md",
+      "name": "Unity Editor Tool Developer",
+      "sha256": "e913e22806a543ba4eaf94606b749cf0b902dfae119989bf3283faed3823c8ca"
+    },
+    "unity-multiplayer-engineer.toml": {
+      "source": "game-development/unity/unity-multiplayer-engineer.md",
+      "name": "Unity Multiplayer Engineer",
+      "sha256": "d218c27693c341303dbf8b1174120125685cbc016aa1f8d04be28fef332f1235"
+    },
+    "unity-shader-graph-artist.toml": {
+      "source": "game-development/unity/unity-shader-graph-artist.md",
+      "name": "Unity Shader Graph Artist",
+      "sha256": "dd90369d5fe572f74833766b07771a67c8fb849a1e78792933deb9d3bf7bc278"
+    },
+    "universal-document-compiler.toml": {
+      "source": "engineering/engineering-universal-document-compiler.md",
+      "name": "Universal Document Compiler",
+      "sha256": "d4dea920a5828542e7b004e80f23506f09d60d811d1c5a3edb5b2a3be6cdbc8b"
+    },
+    "unreal-multiplayer-architect.toml": {
+      "source": "game-development/unreal-engine/unreal-multiplayer-architect.md",
+      "name": "Unreal Multiplayer Architect",
+      "sha256": "40f64e847207e926bd2fca4b865628ecf0aa3713b390c5e77cf90f9f3c14ccb7"
+    },
+    "unreal-systems-engineer.toml": {
+      "source": "game-development/unreal-engine/unreal-systems-engineer.md",
+      "name": "Unreal Systems Engineer",
+      "sha256": "1f73a43afc7f3c701a4efea62c7b1389a2c976bc2c5275e007a2785f6599d834"
+    },
+    "unreal-technical-artist.toml": {
+      "source": "game-development/unreal-engine/unreal-technical-artist.md",
+      "name": "Unreal Technical Artist",
+      "sha256": "f4d446af6f6779c10b02d3dfc4456de81e23285bb45b5f0082e4e5dbfb6fb067"
+    },
+    "unreal-world-builder.toml": {
+      "source": "game-development/unreal-engine/unreal-world-builder.md",
+      "name": "Unreal World Builder",
+      "sha256": "e5aa8e1db60cf59eac1e2f45d804f11a300765b4acbc62ee6c8557d3df44860a"
+    },
+    "uswds-developer.toml": {
+      "source": "engineering/engineering-uswds-developer.md",
+      "name": "USWDS Developer",
+      "sha256": "3871986bcc8712204239abd04ba53f85cd20c78ab3820f0d8d1d907b452d0ffa"
+    },
+    "ux-architect.toml": {
+      "source": "design/design-ux-architect.md",
+      "name": "UX Architect",
+      "sha256": "2ad267f1c610c170abe6d00dc0609170ef6baf2a87642419b43b434ce131285b"
+    },
+    "ux-researcher.toml": {
+      "source": "design/design-ux-researcher.md",
+      "name": "UX Researcher",
+      "sha256": "06399acfd101b79115ef1d9faf07bf5e155de70df15fd3a105e15d7a35686051"
+    },
+    "video-optimization-specialist.toml": {
+      "source": "marketing/marketing-video-optimization-specialist.md",
+      "name": "Video Optimization Specialist",
+      "sha256": "8a96bb725cfbf484d37c6b3c7d4f7d99fb44355cd71484108b4238a64b6659f1"
+    },
+    "video-streaming-engineer.toml": {
+      "source": "engineering/engineering-video-streaming-engineer.md",
+      "name": "Video Streaming Engineer",
+      "sha256": "d04bde401a7bbf39c1e9c746eff3f2ca2468254d03f39f6525019ac718dd033d"
+    },
+    "visionos-spatial-engineer.toml": {
+      "source": "spatial-computing/visionos-spatial-engineer.md",
+      "name": "visionOS Spatial Engineer",
+      "sha256": "8d9fec9fe0aaf3b2eaa5c74a07a2a5888b146141430385a76a1cada62edaa8a6"
+    },
+    "visual-storyteller.toml": {
+      "source": "design/design-visual-storyteller.md",
+      "name": "Visual Storyteller",
+      "sha256": "e78a2797d53a5136fd468e8c2a4b81b9531ba6302ebfbe778c8dee4fbb1d9ef7"
+    },
+    "voice-ai-integration-engineer.toml": {
+      "source": "engineering/engineering-voice-ai-integration-engineer.md",
+      "name": "Voice AI Integration Engineer",
+      "sha256": "7a7f6201dfaa27957172bd66b86b1c3321659cf0088e0c696c32b20d58c27d80"
+    },
+    "web-gis-developer.toml": {
+      "source": "gis/gis-web-gis-developer.md",
+      "name": "Web GIS Developer",
+      "sha256": "5c3e58f2fdc83437800e4bb5513433a297b9f5b4ec596ee9a691a1db635493a8"
+    },
+    "webassembly-engineer.toml": {
+      "source": "engineering/engineering-webassembly-engineer.md",
+      "name": "WebAssembly Engineer",
+      "sha256": "4137a53f0e4125c707bdd500652c57eec0b26e8b377ce383cb792531ac27a57c"
+    },
+    "wechat-mini-program-developer.toml": {
+      "source": "engineering/engineering-wechat-mini-program-developer.md",
+      "name": "WeChat Mini Program Developer",
+      "sha256": "1d900324b9153c4328b773b7c8601ea520524f22806f4a4043186da27a560634"
+    },
+    "wechat-official-account-manager.toml": {
+      "source": "marketing/marketing-wechat-official-account.md",
+      "name": "WeChat Official Account Manager",
+      "sha256": "ab80b6069fbc89917c7bd88c48ee3e4ce5b228dbe92f285c5ca3fcc790ce60c3"
+    },
+    "weibo-strategist.toml": {
+      "source": "marketing/marketing-weibo-strategist.md",
+      "name": "Weibo Strategist",
+      "sha256": "883c028e3f53373828dad8bf6dbde71382db0ac15cdedfb5de74097419e17b44"
+    },
+    "whimsy-injector.toml": {
+      "source": "design/design-whimsy-injector.md",
+      "name": "Whimsy Injector",
+      "sha256": "1c71a316380716d4766c0b6667e55b2c29a003a2c5969f939817d797eb863bde"
+    },
+    "wordpress-performance-engineer.toml": {
+      "source": "engineering/engineering-wordpress-performance.md",
+      "name": "WordPress Performance Engineer",
+      "sha256": "e2f78f27eab5ccc5d8dc60ad911633605ed6480bfb43f2e183a06bd96bc8ca98"
+    },
+    "wordpress-shopping-cart-engineer.toml": {
+      "source": "engineering/engineering-wordpress-shopping-cart.md",
+      "name": "WordPress Shopping Cart Engineer",
+      "sha256": "f7d82c11d12c6a4027162d5ac4b6f421791ecb6c98d64dcb29d262552d80886a"
+    },
+    "workflow-architect.toml": {
+      "source": "specialized/specialized-workflow-architect.md",
+      "name": "Workflow Architect",
+      "sha256": "5914e2f122b48093f3b4a7a43f094e7e3b24bc224023967d274a88cbba3abb03"
+    },
+    "workflow-optimizer.toml": {
+      "source": "testing/testing-workflow-optimizer.md",
+      "name": "Workflow Optimizer",
+      "sha256": "6b9f1b4fe0c9137860f96b501b53f9c7119098b57c7ea652835104538efdf73b"
+    },
+    "x-twitter-intelligence-analyst.toml": {
+      "source": "marketing/marketing-x-twitter-intelligence-analyst.md",
+      "name": "X/Twitter Intelligence Analyst",
+      "sha256": "0e08c04826067b0be04e040918376f0400b0a77594caa13cbf4f6f7bbe691c77"
+    },
+    "xiaohongshu-specialist.toml": {
+      "source": "marketing/marketing-xiaohongshu-specialist.md",
+      "name": "Xiaohongshu Specialist",
+      "sha256": "552d15a2ed258badc8b14ddd2e14d05c0355e9ef5a31f3adcdc474d36c8bafcc"
+    },
+    "xr-cockpit-interaction-specialist.toml": {
+      "source": "spatial-computing/xr-cockpit-interaction-specialist.md",
+      "name": "XR Cockpit Interaction Specialist",
+      "sha256": "7eb6b9c12a8c02e3fce5e6d936e32ff93cbe2dee8bdd04dd98b88b9a20363e80"
+    },
+    "xr-immersive-developer.toml": {
+      "source": "spatial-computing/xr-immersive-developer.md",
+      "name": "XR Immersive Developer",
+      "sha256": "a2f54e9964fb8c5862fb3aa34d6e04eeb53a31b1d9717b8b520f39bd22c8e355"
+    },
+    "xr-interface-architect.toml": {
+      "source": "spatial-computing/xr-interface-architect.md",
+      "name": "XR Interface Architect",
+      "sha256": "525310cae100f78619409b898bb78d8ab588614717194c8490d7ad12c53fa8f0"
+    },
+    "zhihu-strategist.toml": {
+      "source": "marketing/marketing-zhihu-strategist.md",
+      "name": "Zhihu Strategist",
+      "sha256": "544abc4d6290de1f943a1b2a7a7296f01238f24b8f5c464e663565f0a0acf19d"
+    },
+    "zk-steward.toml": {
+      "source": "specialized/zk-steward.md",
+      "name": "ZK Steward",
+      "sha256": "e03407bf51100163d3be5d569d10f929672c42a1fb3d94a817b3bbb51a9fffe1"
+    }
+  }
+}
