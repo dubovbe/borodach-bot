@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { createExecutionContext, runDurableObjectAlarm } from 'cloudflare:test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Client } from '@neondatabase/serverless';
 import worker, { probeDatabase } from '../../src/worker';
 import type { Env } from '../../src/env';
 
@@ -90,21 +91,29 @@ describe('Stage 1 deployment probe', () => {
     expect(await response.text()).toBe('Service unavailable');
   });
 
-  it('non_admin_cannot_arm_probe', async () => {
-    const http = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('must not call'));
-    expect((await call(update('/probe', 200))).status).toBe(200);
-    const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.idFromName('deployment-probe'));
-    expect(await (await stub.fetch('https://probe/status')).json()).toMatchObject({ nextAlarm: null, lastAlarmAt: null });
-    expect(http).not.toHaveBeenCalled();
-  });
-
-  it('admin_probe_arms_real_durable_object_and_records_alarm_without_database', async () => {
-    const http = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ok: true, result: { message_id: 2, date: 1, chat: { id: 100, type: 'private' }, text: 'ok' } }));
-    expect((await call(update('/probe'))).status).toBe(200);
-    const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.idFromName('deployment-probe'));
+  it('durable_object_records_alarm_without_external_calls', async () => {
+    const http = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('must not call external services'));
+    const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.newUniqueId());
+    expect((await stub.fetch('https://probe/arm', { method: 'POST' })).status).toBe(200);
     expect(await runDurableObjectAlarm(stub)).toBe(true);
     const status = await (await stub.fetch('https://probe/status')).json() as { lastAlarmAt: number };
     expect(status.lastAlarmAt).toBeGreaterThan(0);
-    expect(http).toHaveBeenCalledTimes(1); // Telegram acknowledgement only, no Neon.
+    expect(http).not.toHaveBeenCalled();
+  });
+
+  // Restoring any temporary command would reintroduce provider calls or alarm changes.
+  it.each(['/probe_db', '/probe', '/probe_status'])('ignores_retired_command_%s_even_for_private_admin', async (command) => {
+    const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.idFromName('deployment-probe'));
+    const before = await (await stub.fetch('https://probe/status')).json();
+    const scheduler = vi.spyOn(bindings.SCHEDULER, 'get');
+    const connect = vi.spyOn(Client.prototype, 'connect').mockRejectedValue(new Error('must not connect'));
+    const http = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('must not call external services'));
+    const response = await call(update(command));
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('OK');
+    expect(http).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+    expect(scheduler).not.toHaveBeenCalled();
+    expect(await (await stub.fetch('https://probe/status')).json()).toEqual(before);
   });
 });
