@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "borodach-bot",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [{ "name": "SCHEDULER", "class_name": "ProbeScheduler" }]
+  },
+  "migrations": [{ "tag": "v1-probe", "new_sqlite_classes": ["ProbeScheduler"] }]
+}
