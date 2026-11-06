@@ -4,6 +4,7 @@ import { testDatabaseUrl } from './safety';
 import { migrate } from '../../scripts/migrate';
 import { seed } from '../../scripts/seed';
 import { Repository } from '../../src/db/repository';
+import { Outbox } from '../../src/notifications/outbox';
 import { nodeDatabase } from '../../scripts/node-db';
 import { DomainError } from '../../src/domain/types';
 import type { Database } from '../../src/db/client';
@@ -87,9 +88,9 @@ it('migration_repeat_is_noop_and_changed_checksum_is_rejected', async () => {
   const before = await admin.query(`SELECT * FROM "${schema}".schema_migrations`);
   await migrate(scoped.toString());
   expect((await admin.query(`SELECT * FROM "${schema}".schema_migrations`)).rows).toEqual(before.rows);
-  await admin.query(`UPDATE "${schema}".schema_migrations SET checksum=$1`, ['changed']);
+  await admin.query(`UPDATE "${schema}".schema_migrations SET checksum=$1 WHERE name=$2`, ['changed',before.rows[0].name]);
   try { await expect(migrate(scoped.toString())).rejects.toThrow('Migration checksum mismatch'); }
-  finally { await admin.query(`UPDATE "${schema}".schema_migrations SET checksum=$1`, [before.rows[0].checksum]); }
+  finally { await admin.query(`UPDATE "${schema}".schema_migrations SET checksum=$1 WHERE name=$2`, [before.rows[0].checksum,before.rows[0].name]); }
 });
 it('missing_shop_lock_row_fails_explicitly_and_leaves_no_effect', async () => {
   await admin.query(`DELETE FROM "${schema}".settings`); await admin.query(`DELETE FROM "${schema}".shop`);
@@ -112,10 +113,11 @@ it('database_clock_is_read_after_waiting_for_shop_lock', async () => {
 it('delivery_is_separate_from_committed_result_and_replay_is_exact', async () => {
   const repository = repo();
   const result = await repository.execute(actor,command,'17');
-  const message = await repository.pendingStart('17'); expect(message?.chatId).toBe('100');
-  await repository.markSent(message!.id);
-  expect(await repository.pendingStart('17')).toBeNull();
-  expect(await repository.replay('17')).toEqual(result);
+  await admin.query(`UPDATE "${schema}".outbox SET status='cancelled' WHERE update_id<>$1`,['17']);
+  const deliveries:string[]=[];
+  await new Outbox(database(),{send:async job=>{deliveries.push(job.chatId);return {messageId:'test'};}}).deliver(new Date().toISOString(),1);
+  expect((await admin.query(`SELECT status FROM "${schema}".outbox WHERE update_id=$1`,['17'])).rows[0].status).toBe('sent');
+  expect(deliveries).toEqual(['100']);  expect(await repository.replay('17')).toEqual(result);
   expect(await repository.replay('999999')).toBeNull();
 });
 it.skipIf(!new URL(url).hostname.endsWith('.neon.tech'))('runtime_neon_websocket_transaction_and_replay', async () => {

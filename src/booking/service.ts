@@ -5,8 +5,8 @@ import { approvalDeadline, busyIntervals, loadSchedule, slotsInTx, validateSched
 function refuse(code: string): never { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); }
 export type Context = {
     tx: Tx;
-    userId: Id;
-    updateId: Id;
+    userId: Id | null;
+    updateId: Id | null;
 };
 const stamp = (v: Date | string) => new Date(v).toISOString();
 export async function nextDue(tx: Tx): Promise<Instant | null> {
@@ -14,20 +14,49 @@ export async function nextDue(tx: Tx): Promise<Instant | null> {
         due: Date | string | null;
     }>(`SELECT min(due) AS due FROM (
  SELECT CASE WHEN status='leased' THEN GREATEST(due_at,COALESCE(lease_until,due_at)) ELSE due_at END AS due FROM jobs WHERE status IN ('pending','leased')
- UNION ALL SELECT GREATEST(due_at,COALESCE(lease_until,due_at)) FROM outbox WHERE sent_at IS NULL) q`, []);
+ UNION ALL SELECT GREATEST(due_at,COALESCE(lease_until,due_at)) FROM outbox WHERE status IN ('pending','leased')) q`, []);
     return rows[0]?.due ? stamp(rows[0].due) : null;
 }
-async function event(c: Context, kind: string, entityId: Id, visitId: Id, reason?: string): Promise<void> {
+export async function event(c: Context, kind: string, entityId: Id, visitId: Id, reason?: string): Promise<void> {
     const { tx, userId, updateId } = c;
-    await tx.query('INSERT INTO audit_events(update_id,actor_id,kind,entity_id,data,created_at) VALUES($1,$2,$3,$4,$5::jsonb,$6)', [updateId, userId, kind, entityId, JSON.stringify({ visitId, ...(reason ? { reason } : {}) }), tx.now]);
-    const recipients = await tx.query<{
-        telegram_id: string;
-    }>(`SELECT u.telegram_id::text FROM visits v JOIN clients c ON c.id=v.client_id JOIN telegram_users u ON u.id=c.user_id WHERE v.id=$1
- UNION SELECT u.telegram_id::text FROM visits v JOIN barbers b ON b.id=v.barber_id JOIN telegram_users u ON u.id=b.user_id WHERE v.id=$1`, [visitId]);
-    for (const recipient of recipients)
-        await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at) VALUES($1,$2,$3,$4,$5::jsonb,$6) ON CONFLICT(logical_key) DO NOTHING`, [`${kind}:${entityId}:${updateId}:${recipient.telegram_id}`, updateId, 'booking', recipient.telegram_id, JSON.stringify({ event: kind, visitId, ...(reason ? { reason } : {}), ...(kind === 'visit_cancelled' && reason ? { text: `Приносим извинения. Запись отменена: ${reason}. Вы можете записаться снова.` } : {}) }), tx.now]);
-}
-async function cancelJobs(tx: Tx, visitId: Id): Promise<void> { await tx.query("UPDATE jobs SET status='cancelled',version=version+1 WHERE visit_id=$1 AND status IN ('pending','leased')", [visitId]); }
+    const type = kind.startsWith('transfer_') ? 'transfer' : 'visit';
+    const text = kind === 'visit_cancelled' && reason
+        ? `Приносим извинения. Запись отменена: ${reason}. Вы можете записаться снова.` : null;
+    // One SQL roundtrip keeps the serialized shop transaction bounded even across remote Neon RTT.
+    const rows = await tx.query<{ version: number }>(`WITH entity AS (
+      SELECT version FROM visits WHERE $1='visit' AND id=$2
+      UNION ALL SELECT version FROM transfers WHERE $1='transfer' AND id=$2
+    ), audit AS (
+      INSERT INTO audit_events(update_id,actor_id,source,kind,entity_id,data,created_at)
+      VALUES($3,$4,$5,$6,$2,jsonb_build_object('visitId',$7::text)||
+        CASE WHEN $8::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('reason',$8::text) END,$9)
+    ), invalidated AS (
+      UPDATE outbox SET status='cancelled',claim_token=NULL,lease_until=NULL,version=version+1
+      WHERE status IN ('pending','leased') AND entity_id=$2
+        AND entity_version<>(SELECT version FROM entity)
+    ), details AS (
+      SELECT jsonb_build_object('barber',b.name,'address',s.address,'start',v.start_at,
+        'items',COALESCE((SELECT jsonb_agg(jsonb_build_object('name',i.name,
+          'priceKopecks',i.price_kopecks,'durationMinutes',i.duration_minutes) ORDER BY i.id)
+          FROM visit_items i WHERE i.visit_id=v.id),'[]'::jsonb)) AS snapshot
+      FROM visits v JOIN barbers b ON b.id=v.barber_id CROSS JOIN shop s WHERE v.id=$7::uuid
+    ), recipients AS (
+      SELECT u.telegram_id FROM visits v JOIN clients c ON c.id=v.client_id
+        JOIN telegram_users u ON u.id=c.user_id WHERE v.id=$7::uuid
+      UNION SELECT u.telegram_id FROM visits v JOIN barbers b ON b.id=v.barber_id
+        JOIN telegram_users u ON u.id=b.user_id WHERE v.id=$7::uuid
+    ), messages AS (
+      INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,entity_id,entity_version,entity_type)
+      SELECT $6::text||':'||$2::text||':'||e.version::text||':'||r.telegram_id::text,$3,'booking',r.telegram_id,
+        jsonb_build_object('event',$6::text,'visitId',$7::text,'snapshot',d.snapshot)||
+        CASE WHEN $8::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('reason',$8::text) END||
+        CASE WHEN $10::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('text',$10::text) END,
+        $9,$2,e.version,$1
+      FROM entity e CROSS JOIN recipients r CROSS JOIN details d ON CONFLICT(logical_key) DO NOTHING
+    ) SELECT version FROM entity`,
+    [type,entityId,updateId,userId,userId===null?'system':'user',kind,visitId,reason??null,tx.now,text]);
+    if (rows.length !== 1) throw Error('Event entity missing');
+}async function cancelJobs(tx: Tx, visitId: Id): Promise<void> { await tx.query("UPDATE jobs SET status='cancelled',version=version+1 WHERE visit_id=$1 AND status IN ('pending','leased')", [visitId]); }
 async function closeTransfers(c: Context, visitId: Id): Promise<void> {
     const rows = await c.tx.query<{
         id: string;
@@ -177,4 +206,41 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
     await tx.query('UPDATE visits SET status=$1,version=version+1 WHERE id=$2', [status, visit.id]);
     await event(c, `visit_${status}`, visit.id, visit.id, command.reason?.trim());
     return { entityId: visit.id, status, nextWake: await nextDue(tx) };
+}
+
+
+// Background processing addresses exactly one selected due job, under the existing shop lock.
+// Background processing addresses exactly one selected due job, under the existing shop lock.
+export async function expireJob(tx: Tx, job: {
+    kind: string;
+    visit_id: string | null;
+    entity_version: number;
+    payload: Record<string, unknown>;
+}): Promise<boolean> {
+    const context: Context = { tx, userId: null, updateId: null };
+    if (job.kind === 'expire_visit' && job.visit_id) {
+        const row = (await tx.query<{
+            id: string;
+        }>("UPDATE visits SET status='expired',version=version+1 WHERE id=$1 AND version=$2 AND status='pending' AND deadline<=$3 RETURNING id", [job.visit_id, job.entity_version, tx.now]))[0];
+        if (!row)
+            return false;
+        await tx.query('DELETE FROM holds WHERE visit_id=$1', [row.id]);
+        await cancelJobs(tx, row.id);
+        await closeTransfers(context, row.id);
+        await event(context, 'visit_expired', row.id, row.id);
+        return true;
+    }
+    if (job.kind === 'expire_transfer' && typeof job.payload?.transferId === 'string') {
+        // Compare as text so malformed legacy payloads cannot become an endless cast error.
+        const row = (await tx.query<{
+            id: string;
+            visit_id: string;
+        }>("UPDATE transfers SET status='expired',version=version+1 WHERE id::text=$1 AND version=$2 AND status='pending' AND deadline<=$3 RETURNING id,visit_id", [job.payload.transferId, job.entity_version, tx.now]))[0];
+        if (!row)
+            return false;
+        await tx.query('DELETE FROM holds WHERE transfer_id=$1', [row.id]);
+        await event(context, 'transfer_expired', row.id, row.visit_id);
+        return true;
+    }
+    return false;
 }
