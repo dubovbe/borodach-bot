@@ -178,6 +178,17 @@ it('strict expiry, revoked, archived, already linked and second-profile invitati
   expect((await execute('100', { kind: 'redeemInvite', token: next })).status).toBe('invite_invalid');
   expect((await execute('900', { kind: 'issueBarberInvite', barberId: barber })).status).toBe('invite_invalid');
 });
+it('every invitation /start invalidates old draft and leased screens, including invalid invitations',async()=>{
+  const previous=(await sql.query('SELECT d.id,d.version FROM drafts d JOIN telegram_users u ON u.id=d.user_id WHERE u.telegram_id=100')).rows[0];
+  await sql.query("UPDATE outbox SET status='leased',claim_token=gen_random_uuid(),lease_until=$1::timestamptz+interval '30 seconds' WHERE draft_id=$2",[now,previous.id]);
+  const invalid=await execute('100',{kind:'start',payload:'i_'+'z'.repeat(43)});expect(invalid.status).not.toBe('started');
+  expect((await sql.query('SELECT expires_at,version FROM drafts WHERE id=$1',[previous.id])).rows[0]).toMatchObject({expires_at:new Date(now),version:previous.version+1});
+  expect((await sql.query("SELECT * FROM outbox WHERE draft_id=$1 AND status IN ('pending','leased')",[previous.id])).rows).toHaveLength(0);
+  const issued=await execute('900',{kind:'issueBarberInvite',barberId:barber});const token=await invitationToken(issued.entityId!,options.invitationSecret);
+  const valid=await execute('100',{kind:'start',payload:`i_${token}`});expect(valid.status).toBe('invite_redeemed');
+  expect((await sql.query('SELECT expires_at FROM drafts WHERE id=$1',[previous.id])).rows[0].expires_at.toISOString()).toBe(now);
+  expect((await sql.query('SELECT user_id FROM barbers WHERE id=$1',[barber])).rows[0].user_id).toBe(await uid('100'));
+},120000);
 it('missing or weak invitation configuration refuses before creating invitation', async () => {
   for (const invitationSecret of ['', 'x'.repeat(40)]) {
     const result = await repo(now, { ...options, invitationSecret }).execute({ telegramId: '900' }, { kind: 'issueBarberInvite', barberId: barber }, String(update++));
@@ -185,12 +196,12 @@ it('missing or weak invitation configuration refuses before creating invitation'
   }
   expect((await sql.query('SELECT * FROM invitations')).rows).toHaveLength(0);
 });
-it('private contact keyboards survive real outbox preparation and are removed after verification', async () => {
+it('start now offers inline booking; contact verification still removes reply keyboard', async () => {
   const deliveries: Delivery[] = [];
   const transport = { send: async (job: Delivery) => { deliveries.push(job); return { messageId: 'keyboard' }; } };
   await new Outbox(db(), transport, options).deliver(now, 5);
   const prompt = deliveries.find(d => d.chatId === '100')?.payload as { reply_markup: unknown };
-  expect(prompt.reply_markup).toMatchObject({ keyboard: [[{ request_contact: true }]] });
+  expect(prompt.reply_markup).toMatchObject({ inline_keyboard: [[{ text:'Вымышленный мастер' }]] });
   deliveries.length = 0;
   await execute('100', contact());
   await new Outbox(db(), transport, options).deliver(now, 5);

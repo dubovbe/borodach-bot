@@ -1,7 +1,9 @@
 import type { Tx } from '../db/client';
 import { DomainError, type Command, type CommandResult, type Id, type Instant, type IdentityCommand } from '../domain/types';
-import { effectiveOffer } from '../catalog/service';
-import { approvalDeadline, busyIntervals, loadSchedule, slotsInTx, validateSchedule, workBetween } from '../schedule/service';
+import { isMeaningfulName } from '../identity/service';
+import { queueStaffDecision } from '../bot/staff';
+import { reviewedQuote } from './quote';
+import { approvalDeadline, busyIntervals, prepareAvailability, validateSchedule, workBetween } from '../schedule/service';
 function refuse(code: string): never { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); }
 export type Context = {
     tx: Tx;
@@ -44,7 +46,7 @@ export async function event(c: Context, kind: string, entityId: Id, visitId: Id,
       SELECT u.telegram_id FROM visits v JOIN clients c ON c.id=v.client_id
         JOIN telegram_users u ON u.id=c.user_id WHERE v.id=$7::uuid
       UNION SELECT u.telegram_id FROM visits v JOIN barbers b ON b.id=v.barber_id
-        JOIN telegram_users u ON u.id=b.user_id WHERE v.id=$7::uuid
+        JOIN telegram_users u ON u.id=b.user_id WHERE v.id=$7::uuid AND $6<>'visit_pending'
     ), messages AS (
       INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,entity_id,entity_version,entity_type)
       SELECT $6::text||':'||$2::text||':'||e.version::text||':'||r.telegram_id::text,$3,'booking',r.telegram_id,
@@ -56,6 +58,7 @@ export async function event(c: Context, kind: string, entityId: Id, visitId: Id,
     ) SELECT version FROM entity`,
     [type,entityId,updateId,userId,userId===null?'system':'user',kind,visitId,reason??null,tx.now,text]);
     if (rows.length !== 1) throw Error('Event entity missing');
+    if(kind==='visit_pending')await queueStaffDecision(c,visitId);
 }async function cancelJobs(tx: Tx, visitId: Id): Promise<void> { await tx.query("UPDATE jobs SET status='cancelled',version=version+1 WHERE visit_id=$1 AND status IN ('pending','leased')", [visitId]); }
 async function closeTransfers(c: Context, visitId: Id): Promise<void> {
     const rows = await c.tx.query<{
@@ -88,7 +91,7 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-} | IdentityCommand>): Promise<CommandResult> {
+} | IdentityCommand | import('../domain/types').ClientCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
     const { tx, userId } = c;
     if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking'].includes(command.kind)) refuse('forbidden');
     const roles = await tx.query<{
@@ -127,8 +130,9 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         if (!roles.some(r => r.role === 'client')) refuse('forbidden');
         const client = (await tx.query<{
             id: string;
-        }>(`SELECT c.id FROM clients c WHERE c.user_id=$1 AND length(trim(c.name))>0 AND EXISTS(SELECT 1 FROM phone_claims p WHERE p.client_id=c.id AND p.user_id=c.user_id AND p.phone=c.phone AND p.released_at IS NULL)`, [userId]))[0];
-        if (!client) refuse('profile_required');
+            name:string;
+        }>(`SELECT c.id,c.name FROM clients c WHERE c.user_id=$1 AND length(trim(c.name))>0 AND EXISTS(SELECT 1 FROM phone_claims p WHERE p.client_id=c.id AND p.user_id=c.user_id AND p.phone=c.phone AND p.released_at IS NULL)`, [userId]))[0];
+        if (!client||!isMeaningfulName(client.name)) refuse('profile_required');
         const pending = await tx.query<{
             id: string;
         }>(`SELECT id FROM visits WHERE client_id=$1 AND status='pending' AND deadline>$2
@@ -138,20 +142,23 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         if (!Number.isFinite(Date.parse(command.start)))
             refuse('slot_unavailable');
         const start = stamp(command.start);
-        const slots = await slotsInTx({ barberId: command.barberId, serviceIds: command.serviceIds, from: start, to: start, actorMode: 'client' }, tx);
+        const input={barberId:command.barberId,serviceIds:command.serviceIds,from:start,to:start,actorMode:'client' as const};
+        // A caller may supply reviewed terms, never cached availability, offers or exclusions.
+        if(expectedReviewedQuote!==undefined&&typeof expectedReviewedQuote!=='string')refuse('quote_conflict');
+        const data=await prepareAvailability(input,tx);
+        if(expectedReviewedQuote!==undefined&&(await reviewedQuote(command.barberId,command.serviceIds,data.offer,tx)).fingerprint!==expectedReviewedQuote)refuse('quote_conflict');
+        const slots = data.slots(input);
         const slot = slots.find(s => s.start === start);
         if (!slot)
             refuse('slot_unavailable');
-        const offer = await effectiveOffer(command.barberId, command.serviceIds, tx);
-        const schedule = await loadSchedule(command.barberId, tx);
+        const {offer,schedule}=data;
         const deadline = approvalDeadline(tx.now, workBetween(schedule, tx.now, slot.end));
         if (!deadline || Date.parse(deadline) >= Date.parse(start))
             refuse('slot_unavailable');
         const visit = (await tx.query<{
             id: string;
         }>('INSERT INTO visits(client_id,barber_id,status,start_at,end_at,deadline,created_at) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id', [client.id, command.barberId, 'pending', start, slot.end, deadline, tx.now]))[0];
-        for (const item of offer.items)
-            await tx.query('INSERT INTO visit_items(visit_id,service_id,name,price_kopecks,duration_minutes) VALUES($1,$2,$3,$4,$5)', [visit.id, item.serviceId, item.name, item.priceKopecks, item.durationMinutes]);
+        await tx.query(`INSERT INTO visit_items(visit_id,service_id,name,price_kopecks,duration_minutes) SELECT $1,x."serviceId",x.name,x."priceKopecks",x."durationMinutes" FROM jsonb_to_recordset($2::jsonb) AS x("serviceId" uuid,name text,"priceKopecks" integer,"durationMinutes" integer)`,[visit.id,JSON.stringify(offer.items)]);
         await tx.query('INSERT INTO holds(visit_id,barber_id,kind,start_at,end_at,expires_at) VALUES($1,$2,$3,$4,$5,$6)', [visit.id, command.barberId, 'visit', start, slot.end, deadline]);
         await tx.query('INSERT INTO jobs(logical_key,kind,visit_id,entity_version,due_at) VALUES($1,$2,$3,$4,$5)', [`expire:${visit.id}:1`, 'expire_visit', visit.id, 1, deadline]);
         await event(c, 'visit_pending', visit.id, visit.id);

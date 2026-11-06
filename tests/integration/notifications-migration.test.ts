@@ -35,10 +35,14 @@ it('upgrade_001_preserves_sent_and_legacy_start_and_booking_rows', async () => {
         await migrate(scoped.toString());
         await migrate(scoped.toString());
         expect((await client.query('SELECT logical_key,status FROM outbox ORDER BY logical_key')).rows).toEqual([{ logical_key: 'booking', status: 'pending' }, { logical_key: 'invalidbooking', status: 'failed' }, { logical_key: 'pending', status: 'pending' }, { logical_key: 'sent', status: 'sent' }]);
-        const expectedMigrations = await Promise.all(['001-core.sql', '002-notifications.sql', '003-identity.sql'].map(async name => ({
+        const expectedMigrations = await Promise.all(['001-core.sql', '002-notifications.sql', '003-identity.sql', '004-client-flow.sql'].map(async name => ({
             name, checksum: createHash('sha256').update(await readFile(new URL(`../../src/db/schema/${name}`, import.meta.url), 'utf8')).digest('hex')
         })));
         expect((await client.query('SELECT name,checksum FROM schema_migrations ORDER BY name')).rows).toEqual(expectedMigrations);
+        expect((await client.query('SELECT draft_id,draft_version FROM outbox')).rows.every(r=>r.draft_id===null&&r.draft_version===null)).toBe(true);
+        expect((await client.query("SELECT is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name='callbacks' AND column_name='draft_id'",[schema])).rows).toEqual([{is_nullable:'NO'}]);
+        expect((await client.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_schema=$1 AND table_name='staff_callbacks'",[schema])).rows[0].n).toBe(1);
+        await expect(client.query("INSERT INTO outbox(logical_key,kind,chat_id,payload,due_at) VALUES('bad-screen','client_screen',100,'{}',clock_timestamp())")).rejects.toMatchObject({code:'23514'});
         expect((await client.query('SELECT issued_by FROM invitations WHERE id=$1', [legacyInvitationId])).rows).toEqual([{ issued_by: null }]);
         expect((await client.query("SELECT is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name='invitations' AND column_name='issued_by'", [schema])).rows).toEqual([{ is_nullable: 'YES' }]);
         expect((await client.query("SELECT entity_id,entity_version,entity_type FROM outbox WHERE logical_key='booking'")).rows[0]).toMatchObject({ entity_id: visitId, entity_version: 2, entity_type: 'visit' });

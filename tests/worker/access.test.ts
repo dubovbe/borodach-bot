@@ -37,7 +37,7 @@ it('start invitation payload routes to redemption and ordinary start stays start
     await createBot(bindings, { execute } as unknown as Repository).handleUpdate({ update_id: 21, message: { message_id: 1, date: 1, text, entities: [{ type: 'bot_command', offset: 0, length: 6 }], from: { id: 100, is_bot: false as const, first_name: 'Test' }, chat: { id: 100, type: 'private', first_name: 'Test' } } });
   }
   expect(execute.mock.calls[0][1]).toEqual({ kind: 'start', payload: null });
-  expect(execute.mock.calls[1][1]).toEqual({ kind: 'redeemInvite', token: 'a'.repeat(43) });
+  expect(execute.mock.calls[1][1]).toEqual({ kind: 'start', payload: 'i_'+'a'.repeat(43) });
 });
 it('group guidance provider failure is best effort without business work', async () => {
   const execute = vi.fn();
@@ -48,7 +48,7 @@ it('group guidance provider failure is best effort without business work', async
   expect(arm).not.toHaveBeenCalled();
 });
 it('manual phone text cannot verify a contact', async () => {
-  const execute = vi.fn();
+  const execute = vi.fn().mockResolvedValue({status:'ignored_input',nextWake:null});
   await createBot(bindings, { execute } as unknown as Repository).handleUpdate({ update_id: 22, message: {message_id:1,date:1,text:'+79123456789',from:{id:100,is_bot:false,first_name:'Test'},chat:{id:100,type:'private',first_name:'Test'}} });
-  expect(execute).not.toHaveBeenCalled();
+  expect(execute).toHaveBeenCalledWith({telegramId:'100'},{kind:'saveDraftInput',text:'+79123456789'},'22');
 });

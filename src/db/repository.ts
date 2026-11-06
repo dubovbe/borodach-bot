@@ -2,8 +2,8 @@ import { DomainError, type Actor, type Command, type CommandResult, type Instant
 import type { Database, Tx } from './client';
 import { cleanupExpired, executeBooking, nextDue, expireJob } from '../booking/service';
 import { acceptContact, issueBarberInvite, redeemInvite, revokeInvite, type IdentityOptions } from '../identity/service';
-import { CONTACT_TEXT, CONTACT_MARKUP, REMOVE_KEYBOARD } from '../bot/screens';
-export const START_TEXT = 'Тестовый бот запущен. Запись пока недоступна.';
+import { REMOVE_KEYBOARD } from '../bot/screens';
+import { createClientController } from '../bot/client';
 export class Repository {
     constructor(readonly database: Database, readonly firstAdminId = '', readonly identityOptions: IdentityOptions = {}) {
     }
@@ -24,6 +24,12 @@ export class Repository {
                 return previous;
             const userId = await this.touchUser(tx, actor, now);
             await cleanupExpired({ tx, userId, updateId });
+            // Every private /start ends the preceding client form, including invalid invitations.
+            // Keep this outside business SAVEPOINT so a controlled redemption refusal cannot restore it.
+            if(command.kind==='start')await tx.query(`WITH ended AS (
+                UPDATE drafts SET expires_at=$2,version=version+1 WHERE user_id=$1 RETURNING id
+              ) UPDATE outbox SET status='cancelled',claim_token=NULL,lease_until=NULL,version=version+1
+                WHERE draft_id IN(SELECT id FROM ended) AND status IN ('pending','leased')`,[userId,now]);
             await tx.query('SAVEPOINT business', []);
             let result: CommandResult;
             try {
@@ -31,6 +37,7 @@ export class Repository {
                     const clientId = await acceptContact(actor, command.contact, tx);
                     result = { entityId: clientId, status: 'contact_updated', nextWake: now };
                     await this.record(tx, actor, userId, updateId, now, 'contact_updated', 'Телефон подтверждён.', REMOVE_KEYBOARD);
+                    result = await createClientController({tx,userId,updateId},actor).resumeContact() ?? result;
                 } else if (command.kind === 'issueBarberInvite') {
                     const id = await issueBarberInvite(actor, command.barberId, tx, this.identityOptions);
                     result = { entityId: id, status: 'invite_issued', nextWake: now };
@@ -44,19 +51,27 @@ export class Repository {
                     const id = await redeemInvite(actor, command.token, tx);
                     result = { entityId: id, status: 'invite_redeemed', nextWake: now };
                     await this.record(tx, actor, userId, updateId, now, 'invite_redeemed', 'Профиль барбера подключён.');
+                } else if (command.kind === 'clientAction') {
+                    result = await createClientController({tx,userId,updateId},actor).handleClientAction(actor,command.callbackId,tx);
+                } else if (command.kind === 'saveDraftInput') {
+                    result = await createClientController({tx,userId,updateId},actor).saveDraftInput(command.text);
                 } else if (command.kind !== 'start') {
                     result = await executeBooking({ tx, userId, updateId }, command);
                 }
                 else {
-                    await tx.query('UPDATE drafts SET expires_at=$1, version=version+1 WHERE user_id=$2', [now, userId]);
                     await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId, 'client']);
                     if (actor.telegramId === this.firstAdminId) {
                         await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId, 'admin']);
                     }
                     await tx.query("INSERT INTO clients(user_id,name) VALUES($1,'') ON CONFLICT(user_id) DO NOTHING", [userId]);
-                    const verified = await tx.query('SELECT 1 FROM phone_claims WHERE user_id=$1 AND released_at IS NULL', [userId]);
-                    result = { entityId: userId, status: 'started', nextWake: now };
-                    await this.record(tx, actor, userId, updateId, now, 'start', verified.length ? START_TEXT : CONTACT_TEXT, verified.length ? REMOVE_KEYBOARD : CONTACT_MARKUP);
+                    if(command.payload?.startsWith('i_')){
+                        const id=await redeemInvite(actor,command.payload.slice(2),tx);
+                        result={entityId:id,status:'invite_redeemed',nextWake:now};
+                        await this.record(tx,actor,userId,updateId,now,'invite_redeemed','Профиль барбера подключён.');
+                    }else {
+                        result = await createClientController({tx,userId,updateId},actor).start(command.payload);
+                        await tx.query('INSERT INTO audit_events(update_id,actor_id,kind,created_at) VALUES($1,$2,$3,$4)',[updateId,userId,'start',now]);
+                    }
                 }
             }
             catch (error) {

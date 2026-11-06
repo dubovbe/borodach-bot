@@ -4,6 +4,7 @@ import type { Database, Tx } from '../db/client';
 import { nextDue } from '../booking/service';
 import type { Instant } from '../domain/types';
 import { DeliveryError, type Delivery, type Transport } from './transport';
+import { prepareStaffDecision } from '../bot/staff';
 type Row = {
     id: string;
     kind: string;
@@ -14,6 +15,8 @@ type Row = {
     entity_type: string | null;
     claim_token: string;
     attempts: number;
+    draft_id?:string|null;
+    draft_version?:number|null;
 };
 type PreparedDelivery = {
     delivery: Delivery;
@@ -63,12 +66,20 @@ export class Outbox {
                     else if (!entity || entity.version !== row.entity_version || entity.status !== expected)
                         invalid = 'stale_entity';
                 }
-                if (!invalid && row.kind === 'booking')
-                    text = await bookingText(tx, row);
+                if (!invalid && row.kind === 'booking') {
+                    if(typeof row.payload.staffUserId==='string'){
+                        const card=await prepareStaffDecision(tx,row.entity_id!,row.payload.staffUserId,row.chat_id,row.payload.buttons);
+                        if(!card)invalid='stale_entity';else {text=card.text;replyMarkup=safeReplyMarkup(card.keyboard);}
+                    }else text = await bookingText(tx, row);
+                }
             }
             else if (row.kind === 'invitation') {
                 text = await renderInvitation(tx,row.payload.invitationId,row.chat_id,this.identityOptions);
                 if (!text) invalid = 'stale_entity';
+            }
+            else if(row.kind==='client_screen'){
+                const current=await tx.query(`SELECT d.id FROM drafts d JOIN telegram_users u ON u.id=d.user_id WHERE d.id=$1 AND d.version=$2 AND d.expires_at>$3 AND u.telegram_id=$4`,[row.draft_id??null,row.draft_version??null,tx.now,row.chat_id]);
+                if(!current.length)invalid='stale_entity';
             }
             else if (!['start', 'delivery_failure'].includes(row.kind))
                 invalid = 'unknown_kind';

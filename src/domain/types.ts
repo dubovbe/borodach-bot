@@ -9,7 +9,8 @@ export type IdentityCommand = { kind:'updateContact'; contact:{userId?:Id;phone:
  | {kind:'issueBarberInvite';barberId:Id}
  | {kind:'revokeInvite';invitationId:Id}
  | {kind:'redeemInvite';token:string};
-export type Command = IdentityCommand | { kind: 'start'; payload: string | null }
+export type ClientCommand = {kind:'clientAction';callbackId:Id} | {kind:'saveDraftInput';text:string};
+export type Command = IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
  | { kind:'requestBooking'; barberId:Id; serviceIds:Id[]; start:Instant }
  | { kind:'confirmBooking'|'declineBooking'|'cancelBooking'; visitId:Id; expectedVersion:number; reason?:string }
  | { kind:'changeSchedule'; barberId:Id; expectedVersion:number; schedule:WorkSchedule };
