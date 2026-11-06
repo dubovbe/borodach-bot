@@ -10,6 +10,7 @@ export default defineConfig({
       WEBHOOK_SECRET: 'test-webhook-secret',
       DATABASE_URL: 'postgresql://test:fake-password@ep-test.eu-central-1.aws.neon.tech/test?sslmode=require',
       FIRST_ADMIN_ID: '100',
+      INVITATION_SECRET: 'test-only-invitation-secret-000000000000000000',
     } },
   })],
   test: { include: ['tests/worker/**/*.test.ts'] },

@@ -33,3 +33,11 @@ it('telegram_400_is_permanent', async () => {
     vi.spyOn(globalThis,'fetch').mockResolvedValue(Response.json({ok:false,error_code:400}));
     await expect(new TelegramTransport('test').send(job)).rejects.toMatchObject({code:'permanent'});
 });
+
+it('contact keyboard passes server-controlled markup, rejects arbitrary keyboard instructions', async () => {
+    const fetcher=vi.spyOn(globalThis,'fetch').mockResolvedValue(Response.json({ok:true,result:{message_id:1}}));
+    const reply_markup={keyboard:[[{text:'Поделиться телефоном',request_contact:true}]],resize_keyboard:true,one_time_keyboard:true};
+    await new TelegramTransport('test').send({...job,payload:{text:'Phone',reply_markup}});
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).reply_markup).toEqual(reply_markup);
+    await expect(new TelegramTransport('test').send({...job,payload:{text:'Phone',reply_markup:{inline_keyboard:[[{text:'bad',url:'https://bad.invalid'}]]}}})).rejects.toMatchObject({code:'invalid_payload'});
+});

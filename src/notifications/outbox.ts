@@ -1,3 +1,5 @@
+import { renderInvitation, type IdentityOptions } from '../identity/service';
+import { safeReplyMarkup } from '../bot/screens';
 import type { Database, Tx } from '../db/client';
 import { nextDue } from '../booking/service';
 import type { Instant } from '../domain/types';
@@ -21,7 +23,7 @@ const validStates: Record<string, string> = {
     visit_pending: 'pending', visit_confirmed: 'confirmed', visit_declined: 'declined', visit_expired: 'expired', visit_cancelled: 'cancelled', transfer_pending: 'pending', transfer_accepted: 'accepted', transfer_declined: 'declined', transfer_expired: 'expired', transfer_cancelled: 'cancelled'
 };
 export class Outbox {
-    constructor(private database: Database, private transport: Transport) {
+    constructor(private database: Database, private transport: Transport, private identityOptions: IdentityOptions = {}) {
     }
     private claim(): Promise<Row | null> {
         return this.database.transaction(async (tx) => {
@@ -38,6 +40,8 @@ export class Outbox {
                 return null;
             let text: unknown = row.payload?.text;
             let invalid: string | null = null;
+            let replyMarkup: unknown;
+            try { replyMarkup = safeReplyMarkup(row.payload?.reply_markup); } catch { invalid = 'invalid_payload'; }
             const user = await tx.query<{
                 unreachable_at: unknown;
                 version: number;
@@ -62,6 +66,10 @@ export class Outbox {
                 if (!invalid && row.kind === 'booking')
                     text = await bookingText(tx, row);
             }
+            else if (row.kind === 'invitation') {
+                text = await renderInvitation(tx,row.payload.invitationId,row.chat_id,this.identityOptions);
+                if (!text) invalid = 'stale_entity';
+            }
             else if (!['start', 'delivery_failure'].includes(row.kind))
                 invalid = 'unknown_kind';
             if (!invalid && (typeof text !== 'string' || text.length === 0 || text.length > 4096))
@@ -72,7 +80,7 @@ export class Outbox {
             }
             return {
                 delivery: {
-                    id: row.id, chatId: row.chat_id, method: 'sendMessage', payload: { text }, entityId: row.entity_id, entityVersion: row.entity_version
+                    id: row.id, chatId: row.chat_id, method: 'sendMessage', payload: { text, ...(replyMarkup ? {reply_markup:replyMarkup} : {}) }, entityId: row.entity_id, entityVersion: row.entity_version
                 },
                 activityVersion: user[0]?.version ?? null,
             };

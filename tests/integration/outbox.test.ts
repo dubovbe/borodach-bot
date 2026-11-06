@@ -41,7 +41,7 @@ async function visit() {
     await repo().execute({ telegramId: '100' }, { kind: 'start', payload: null }, '1');
     await admin.query("INSERT INTO roles(user_id,role) SELECT id,'barber' FROM telegram_users WHERE telegram_id=100 ON CONFLICT DO NOTHING");
     await admin.query('UPDATE barbers SET user_id=(SELECT id FROM telegram_users WHERE telegram_id=100)');
-    const client = (await admin.query("INSERT INTO clients(user_id,name) SELECT id,'Test' FROM telegram_users WHERE telegram_id=100 RETURNING id")).rows[0].id;
+    const client = (await admin.query("INSERT INTO clients(user_id,name) SELECT id,'Test' FROM telegram_users WHERE telegram_id=100 ON CONFLICT(user_id) DO UPDATE SET name=EXCLUDED.name RETURNING id")).rows[0].id;
     const barber = (await admin.query('SELECT id FROM barbers LIMIT 1')).rows[0].id;
     const id = (await admin.query(`INSERT INTO visits(client_id,barber_id,status,start_at,end_at,deadline,created_at) VALUES($1,$2,'pending',clock_timestamp()+interval '1 day',clock_timestamp()+interval '1 day 1 hour',clock_timestamp()-interval '1 second',clock_timestamp()) RETURNING id`, [client, barber])).rows[0].id;
     await admin.query('DELETE FROM outbox');

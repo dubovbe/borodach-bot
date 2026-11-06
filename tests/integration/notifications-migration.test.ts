@@ -27,6 +27,7 @@ it('upgrade_001_preserves_sent_and_legacy_start_and_booking_rows', async () => {
         await seed(scoped.toString());
         const clientId = (await client.query("INSERT INTO clients(name) VALUES('Legacy client') RETURNING id")).rows[0].id;
         const barberId = (await client.query('SELECT id FROM barbers LIMIT 1')).rows[0].id;
+        const legacyInvitationId = (await client.query('INSERT INTO invitations(barber_id,token_hash,expires_at) VALUES($1,$2,$3) RETURNING id', [barberId, 'a'.repeat(64), '2030-01-01T00:00:00Z'])).rows[0].id;
         const visitId = (await client.query(`INSERT INTO visits(client_id,barber_id,status,start_at,end_at,created_at,version) VALUES($1,$2,'confirmed','2026-11-07T10:00:00Z','2026-11-07T10:45:00Z',clock_timestamp(),2) RETURNING id`, [clientId, barberId])).rows[0].id;
         await client.query("INSERT INTO visit_items(visit_id,service_id,name,price_kopecks,duration_minutes) SELECT $1,id,'Снимок услуги',123400,45 FROM services LIMIT 1", [visitId]);
         await client.query("UPDATE services SET name='Changed catalog'; UPDATE rank_tariffs SET price_kopecks=1,duration_minutes=1");
@@ -34,15 +35,22 @@ it('upgrade_001_preserves_sent_and_legacy_start_and_booking_rows', async () => {
         await migrate(scoped.toString());
         await migrate(scoped.toString());
         expect((await client.query('SELECT logical_key,status FROM outbox ORDER BY logical_key')).rows).toEqual([{ logical_key: 'booking', status: 'pending' }, { logical_key: 'invalidbooking', status: 'failed' }, { logical_key: 'pending', status: 'pending' }, { logical_key: 'sent', status: 'sent' }]);
-        expect((await client.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n).toBe(2);
+        const expectedMigrations = await Promise.all(['001-core.sql', '002-notifications.sql', '003-identity.sql'].map(async name => ({
+            name, checksum: createHash('sha256').update(await readFile(new URL(`../../src/db/schema/${name}`, import.meta.url), 'utf8')).digest('hex')
+        })));
+        expect((await client.query('SELECT name,checksum FROM schema_migrations ORDER BY name')).rows).toEqual(expectedMigrations);
+        expect((await client.query('SELECT issued_by FROM invitations WHERE id=$1', [legacyInvitationId])).rows).toEqual([{ issued_by: null }]);
+        expect((await client.query("SELECT is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name='invitations' AND column_name='issued_by'", [schema])).rows).toEqual([{ is_nullable: 'YES' }]);
         expect((await client.query("SELECT entity_id,entity_version,entity_type FROM outbox WHERE logical_key='booking'")).rows[0]).toMatchObject({ entity_id: visitId, entity_version: 2, entity_type: 'visit' });
         const texts: string[] = [];
-        await new Outbox(nodeDatabase(scoped.toString()), { send: async (delivery) => {
+        await new Outbox(nodeDatabase(scoped.toString()), {
+            send: async (delivery) => {
                 texts.push((delivery.payload as {
                     text: string;
                 }).text);
                 return { messageId: 'legacy-test' };
-            } }).deliver(new Date().toISOString(), 5);
+            }
+        }).deliver(new Date().toISOString(), 5);
         expect((await client.query("SELECT status FROM outbox WHERE logical_key='booking'")).rows[0].status).toBe('sent');
         const bookingText = texts.find(text => text.includes('Запись подтверждена'));
         expect(bookingText).toContain('Снимок услуги');

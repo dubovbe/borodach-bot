@@ -1,5 +1,5 @@
 import type { Tx } from '../db/client';
-import { DomainError, type Command, type CommandResult, type Id, type Instant } from '../domain/types';
+import { DomainError, type Command, type CommandResult, type Id, type Instant, type IdentityCommand } from '../domain/types';
 import { effectiveOffer } from '../catalog/service';
 import { approvalDeadline, busyIntervals, loadSchedule, slotsInTx, validateSchedule, workBetween } from '../schedule/service';
 function refuse(code: string): never { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); }
@@ -88,8 +88,9 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-}>): Promise<CommandResult> {
+} | IdentityCommand>): Promise<CommandResult> {
     const { tx, userId } = c;
+    if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking'].includes(command.kind)) refuse('forbidden');
     const roles = await tx.query<{
         role: string;
     }>('SELECT role FROM roles WHERE user_id=$1', [userId]);
@@ -123,11 +124,11 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         return { entityId: command.barberId, status: 'schedule_changed', nextWake: await nextDue(tx) };
     }
     if (command.kind === 'requestBooking') {
+        if (!roles.some(r => r.role === 'client')) refuse('forbidden');
         const client = (await tx.query<{
             id: string;
-        }>('SELECT id FROM clients WHERE user_id=$1', [userId]))[0];
-        if (!client || !roles.some(r => r.role === 'client'))
-            refuse('forbidden');
+        }>(`SELECT c.id FROM clients c WHERE c.user_id=$1 AND length(trim(c.name))>0 AND EXISTS(SELECT 1 FROM phone_claims p WHERE p.client_id=c.id AND p.user_id=c.user_id AND p.phone=c.phone AND p.released_at IS NULL)`, [userId]))[0];
+        if (!client) refuse('profile_required');
         const pending = await tx.query<{
             id: string;
         }>(`SELECT id FROM visits WHERE client_id=$1 AND status='pending' AND deadline>$2
@@ -160,14 +161,15 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         id: string;
         client_user_id: string | null;
         barber_user_id: string | null;
+        barber_active: boolean;
         status: string;
         version: number;
         start_at: Date | string;
         deadline: Date | string | null;
-    }>(`SELECT v.*,c.user_id AS client_user_id,b.user_id AS barber_user_id FROM visits v JOIN clients c ON c.id=v.client_id JOIN barbers b ON b.id=v.barber_id WHERE v.id=$1`, [command.visitId]))[0];
+    }>(`SELECT v.*,c.user_id AS client_user_id,b.user_id AS barber_user_id,b.archived_at IS NULL AS barber_active FROM visits v JOIN clients c ON c.id=v.client_id JOIN barbers b ON b.id=v.barber_id WHERE v.id=$1`, [command.visitId]))[0];
     if (!visit)
         refuse('not_found');
-    const staff = admin || (visit.barber_user_id === userId && roles.some(r => r.role === 'barber'));
+    const staff = admin || (visit.barber_active && visit.barber_user_id === userId && roles.some(r => r.role === 'barber'));
     const owner = visit.client_user_id === userId;
     if (command.kind === 'cancelBooking' ? (!owner && !staff) : !staff)
         refuse('forbidden');
