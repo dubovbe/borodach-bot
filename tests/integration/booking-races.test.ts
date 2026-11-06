@@ -47,6 +47,11 @@ beforeEach(async () => {
         for (let day = 1; day <= 7; day++)
             await admin.query('INSERT INTO weekly_hours(barber_id,weekday,start_minute,end_minute) VALUES($1,$2,0,1200)', [barber, day]);
 });
+it('direct request requires meaningful name even with a matching verified phone claim',async()=>{
+    await admin.query("UPDATE clients SET name=$1 WHERE user_id=(SELECT id FROM telegram_users WHERE telegram_id=100)",['Bad\nName']);
+    expect((await execute('100',request(),'60')).status).toBe('profile_required');
+    expect((await admin.query('SELECT * FROM visits')).rows).toHaveLength(0);
+});
 it('overlapping independent connections only one succeeds and adjacency works', async () => {
     const sixtyMinuteService = crypto.randomUUID();
     await admin.query('INSERT INTO services(id,name) VALUES($1,$2)', [sixtyMinuteService, 'Sixty-minute service']);

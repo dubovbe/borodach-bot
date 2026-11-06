@@ -15,7 +15,7 @@ export function createBot(env: Env, repository: Repository): Bot {
     if (!ctx.from) return;
     if (ctx.chat.type !== 'private') { await groupGuidance(text=>ctx.reply(text)); return; }
     const payload = ctx.match || null;
-    const command = payload?.startsWith('i_') ? { kind:'redeemInvite' as const, token:payload.slice(2) } : { kind:'start' as const, payload };
+    const command = { kind:'start' as const, payload };
     const result = await repository.execute({ telegramId: String(ctx.from.id) }, command, String(ctx.update.update_id));
     await new CloudflareScheduler(env.SCHEDULER).arm(result.nextWake);
   });
@@ -24,6 +24,19 @@ export function createBot(env: Env, repository: Repository): Bot {
     if (ctx.chat.type !== 'private') { await groupGuidance(text=>ctx.reply(text)); return; }
     const contact = ctx.message.contact;
     const result = await repository.execute({telegramId:String(ctx.from.id)}, {kind:'updateContact', contact:{phone:contact.phone_number,...(contact.user_id===undefined?{}:{userId:String(contact.user_id)})}},String(ctx.update.update_id));
+    await new CloudflareScheduler(env.SCHEDULER).arm(result.nextWake);
+  });
+  bot.on('callback_query:data',async ctx=>{
+    if(!ctx.from)return;
+    if(ctx.chat?.type!=='private') { if(ctx.chat)await groupGuidance(text=>ctx.reply(text));return; }
+    const result=await repository.execute({telegramId:String(ctx.from.id)},{kind:'clientAction',callbackId:ctx.callbackQuery.data},String(ctx.update.update_id));
+    await new CloudflareScheduler(env.SCHEDULER).arm(result.nextWake);
+    // Protocol ACK only, after durable work; provider failure cannot retry the business command.
+    try {await ctx.answerCallbackQuery();} catch { /* best effort */ }
+  });
+  bot.on('message:text',async ctx=>{
+    if(!ctx.from||ctx.chat.type!=='private'||ctx.message.text.startsWith('/'))return;
+    const result=await repository.execute({telegramId:String(ctx.from.id)},{kind:'saveDraftInput',text:ctx.message.text},String(ctx.update.update_id));
     await new CloudflareScheduler(env.SCHEDULER).arm(result.nextWake);
   });
   return bot;

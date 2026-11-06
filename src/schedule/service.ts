@@ -118,12 +118,19 @@ export async function busyIntervals(barberId: Id, tx: Tx, excludeVisitId?: Id): 
     return rows.map(r => ({ start: new Date(r.start_at).toISOString(), end: new Date(r.end_at).toISOString() }));
 }
 export async function slotsInTx(input: SlotInput, tx: Tx): Promise<Interval[]> {
-    const offer = await effectiveOffer(input.barberId, input.serviceIds, tx);
-    const schedule = await loadSchedule(input.barberId, tx);
+    const prepared=await prepareAvailability(input,tx);
+    return prepared.slots(input);
+}
+// Explicit transaction-local preparation. No global cache, and no reuse across transactions.
+export async function prepareAvailability(input:SlotInput,tx:Tx){
+    const offer=await effectiveOffer(input.barberId,input.serviceIds,tx);
+    const schedule=await loadSchedule(input.barberId,tx);
     const settings = await tx.query<{
         booking_horizon_days: number;
     }>('SELECT booking_horizon_days FROM settings WHERE shop_id=1', []);
-    return slotsFor(input, tx.now, offer.durationMinutes, schedule, await busyIntervals(input.barberId, tx, input.excludeVisitId), settings[0]?.booking_horizon_days ?? 30);
+    const busy=await busyIntervals(input.barberId,tx,input.excludeVisitId);
+    const horizon=settings[0]?.booking_horizon_days??30;
+    return {tx,barberId:input.barberId,serviceIds:[...input.serviceIds],offer,schedule,horizon,slots:(range:Pick<SlotInput,'from'|'to'|'actorMode'>)=>slotsFor(range,tx.now,offer.durationMinutes,schedule,busy,horizon)};
 }
 export async function listSlots(input: SlotInput, db: Database): Promise<Interval[]> {
     return db.read(async (sql) => {

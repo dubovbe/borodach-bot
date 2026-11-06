@@ -4,6 +4,7 @@ import type { Tx } from '../db/client';
 
 export type IdentityOptions = { invitationSecret?: string; botUsername?: string };
 const deny = (code = 'forbidden'): never => { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); };
+export function isMeaningfulName(text:string):boolean{return text.trim().length>=1&&text.trim().length<=80&&!/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(text);}
 export function normalizePhone(value: string, telegram = false): string {
   if (typeof value !== 'string' || value.length > 40 || !/^[+\d\s().-]+$/.test(value)) deny('invalid_phone');
   const input = telegram && /^\d+$/.test(value) ? `+${value}` : value;
