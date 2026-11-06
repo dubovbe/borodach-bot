@@ -6,7 +6,10 @@ import { createBot } from './bot/create-bot';
 export { probeDatabase } from './db/probe';
 export { ProbeScheduler } from './jobs/scheduler';
 
+import { CloudflareScheduler } from './jobs/scheduler';
+
 export default {
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> { await new CloudflareScheduler(env.SCHEDULER).ensure(); },
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const path = new URL(request.url).pathname;
     if (path === '/health' && request.method === 'GET') return Response.json({ ok: true });

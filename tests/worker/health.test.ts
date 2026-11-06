@@ -5,6 +5,7 @@ import { Client } from '@neondatabase/serverless';
 import worker, { probeDatabase } from '../../src/worker';
 import type { Env } from '../../src/env';
 import { Repository } from '../../src/db/repository';
+import { CloudflareScheduler } from '../../src/jobs/scheduler';
 
 const bindings = env as unknown as Env;
 const call = (request: Request, config = bindings) => worker.fetch(request, config, createExecutionContext());
@@ -70,24 +71,12 @@ describe('Stage 1 deployment probe', () => {
     expect(Date.now() - started).toBeLessThan(4500);
   }, 5000);
 
-  it('start_commits_then_sends_safe_telegram_reply', async () => {
-    const execute = vi.spyOn(Repository.prototype, 'execute').mockResolvedValue({ status: 'started', nextWake: '2026-11-06T00:00:00.000Z' });
-    vi.spyOn(Repository.prototype, 'pendingStart').mockResolvedValue({ id: 'message', chatId: '100', text: 'Тестовый бот запущен.' });
-    const mark = vi.spyOn(Repository.prototype, 'markSent').mockResolvedValue();
-    const destinations: string[] = [];
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = String(input); destinations.push(url);
-      expect(execute).toHaveBeenCalledOnce();
-      expect(url).toBe('https://api.telegram.org/bot123456:test-token/sendMessage');
-      expect(JSON.parse(String(init?.body))).toMatchObject({ chat_id: '100' });
-      expect(String(init?.body)).not.toContain('fake-password');
-      return Response.json({ ok: true, result: { message_id: 2, date: 1, chat: { id: 100, type: 'private' }, text: 'ok' } });
-    });
-    expect((await call(update('/start'))).status).toBe(200);
-    expect(destinations).toHaveLength(1);
-    expect(mark).toHaveBeenCalledWith('message');
+  it('start_commits_then_awaits_durable_arm', async () => {
+    const execute=vi.spyOn(Repository.prototype,'execute').mockResolvedValue({status:'started',nextWake:'2026-11-06T00:00:00.000Z'});
+    const arm=vi.spyOn(CloudflareScheduler.prototype,'arm').mockImplementation(async()=>{expect(execute).toHaveBeenCalledOnce();});
+    const http=vi.spyOn(globalThis,'fetch').mockRejectedValue(Error('must not send directly'));
+    expect((await call(update('/start'))).status).toBe(200);expect(arm).toHaveBeenCalledWith('2026-11-06T00:00:00.000Z');expect(http).not.toHaveBeenCalled();
   });
-
   it('provider_errors_do_not_escape_webhook', async () => {
     vi.spyOn(Client.prototype, 'connect').mockRejectedValue(new Error('fake-password test-token'));
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fake-password test-token'));
@@ -96,16 +85,16 @@ describe('Stage 1 deployment probe', () => {
     expect(await response.text()).toBe('Service unavailable');
   });
 
-  it('durable_object_records_alarm_without_external_calls', async () => {
-    const http = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('must not call external services'));
-    const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.newUniqueId());
-    expect((await stub.fetch('https://probe/arm', { method: 'POST' })).status).toBe(200);
-    expect(await runDurableObjectAlarm(stub)).toBe(true);
-    const status = await (await stub.fetch('https://probe/status')).json() as { lastAlarmAt: number };
-    expect(status.lastAlarmAt).toBeGreaterThan(0);
-    expect(http).not.toHaveBeenCalled();
+  it('durable_object_ensure_repairs_real_storage_alarm_without_external_calls', async () => {
+    const http=vi.spyOn(globalThis,'fetch').mockRejectedValue(Error('must not call external services'));
+    const stub=bindings.SCHEDULER.get(bindings.SCHEDULER.newUniqueId());
+    const at=Date.now()+600000;
+    expect((await stub.fetch('https://scheduler/arm',{method:'POST',body:JSON.stringify({nextWake:new Date(at).toISOString()})})).status).toBe(200);
+    expect((await stub.fetch('https://scheduler/ensure',{method:'POST'})).status).toBe(200);
+    const status=await (await stub.fetch('https://scheduler/status')).json() as {nextAlarm:number};
+    expect(status.nextAlarm).toBe(at);expect(http).not.toHaveBeenCalled();
+    expect((await stub.fetch('https://scheduler/arm',{method:'POST'})).status).toBe(400);
   });
-
   // Restoring any temporary command would reintroduce provider calls or alarm changes.
   it.each(['/probe_db', '/probe', '/probe_status'])('ignores_retired_command_%s_even_for_private_admin', async (command) => {
     const stub = bindings.SCHEDULER.get(bindings.SCHEDULER.idFromName('deployment-probe'));
