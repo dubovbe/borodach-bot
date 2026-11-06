@@ -5,7 +5,10 @@ export type Actor = { telegramId: Id };
 export class DomainError extends Error {
   constructor(public readonly code: string, message: string) { super(message); this.name = 'DomainError'; }
 }
-export type Command = { kind: 'start'; payload: string | null };
+export type Command = { kind: 'start'; payload: string | null }
+ | { kind:'requestBooking'; barberId:Id; serviceIds:Id[]; start:Instant }
+ | { kind:'confirmBooking'|'declineBooking'|'cancelBooking'; visitId:Id; expectedVersion:number; reason?:string }
+ | { kind:'changeSchedule'; barberId:Id; expectedVersion:number; schedule:WorkSchedule };
 export type CommandResult = { entityId?: Id; status: string; nextWake: Instant | null };
 export type OfferItem = { serviceId: Id; name: string; priceKopecks: number; durationMinutes: number };
 export type Conflict = Interval & { visitId: Id; kind: 'visit' | 'transfer' };

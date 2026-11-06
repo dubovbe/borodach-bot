@@ -1,5 +1,6 @@
 import { DomainError, type Actor, type Command, type CommandResult, type Instant } from '../domain/types';
 import type { Database, Tx } from './client';
+import { cleanupExpired, executeBooking, nextDue } from '../booking/service';
 
 export const START_TEXT = 'Тестовый бот запущен. Запись пока недоступна.';
 export class Repository {
@@ -19,18 +20,22 @@ export class Repository {
       const now = tx.now;
       const previous = await this.readResult(tx, updateId);
       if (previous) return previous;
+      const userId = await this.touchUser(tx, actor, now);
+      await cleanupExpired({tx,userId,updateId});
       await tx.query('SAVEPOINT business', []);
       let result: CommandResult;
       try {
-        if (command.kind !== 'start') throw new DomainError('unsupported_command', 'Команда пока недоступна.');
-        const userId = await this.touchUser(tx, actor, now);
-        await tx.query('UPDATE drafts SET expires_at=$1, version=version+1 WHERE user_id=$2', [now,userId]);
-        await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId,'client']);
-        if (actor.telegramId === this.firstAdminId) {
-          await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId,'admin']);
+        if (command.kind !== 'start') {
+          result = await executeBooking({tx,userId,updateId},command);
+        } else {
+          await tx.query('UPDATE drafts SET expires_at=$1, version=version+1 WHERE user_id=$2', [now,userId]);
+          await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId,'client']);
+          if (actor.telegramId === this.firstAdminId) {
+            await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId,'admin']);
+          }
+          result = { entityId: userId, status: 'started', nextWake: now };
+          await this.record(tx, actor, userId, updateId, now, 'start', START_TEXT);
         }
-        result = { entityId: userId, status: 'started', nextWake: now };
-        await this.record(tx, actor, userId, updateId, now, 'start', START_TEXT);
       } catch (error) {
         if (!(error instanceof DomainError)) throw error;
         await tx.query('ROLLBACK TO SAVEPOINT business', []);
@@ -38,6 +43,7 @@ export class Repository {
         result = { entityId: userId, status: error.code, nextWake: now };
         // DomainError messages are controlled application copy. Provider errors never reach here.
         await this.record(tx, actor, userId, updateId, now, 'command_refused', error.message);
+        if(command.kind!=='start') result.nextWake=await nextDue(tx);
       }
       await tx.query('RELEASE SAVEPOINT business', []);
       await tx.query('INSERT INTO processed_updates(update_id,actor_telegram_id,result,processed_at) VALUES($1,$2,$3::jsonb,$4)',

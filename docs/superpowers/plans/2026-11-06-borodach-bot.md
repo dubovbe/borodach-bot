@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript strict, grammY, @neondatabase/serverless (Client для интерактивных транзакций), SQL-миграции без ORM, Vitest + @cloudflare/vitest-plugin, Wrangler; Node.js LTS с npm, PostgreSQL тестовой среды. Точные совместимые версии проверяются и фиксируются package-lock.json на этапе 1, не копируются из старых примеров.
 
-**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Техническая проверка этапа 1 завершена с ограничениями CPU/учёта расхода в docs/deployment.md. Этап 2 реализован и проверен на Neon и CI Linux/PostgreSQL; пользователь согласовал: отдельная тестовая ветка Neon, разработчик Sol Medium, проверяющий Sol High. Уточнения исполнения — docs/stage-2-foundation.md. Этапы 3–11 не начаты. Роли: [agent-team.md](../../agent-team.md).
+**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Техническая проверка этапа 1 завершена с ограничениями CPU/учёта расхода в docs/deployment.md. Этап 2 реализован и проверен на Neon и CI Linux/PostgreSQL; пользователь согласовал: отдельная тестовая ветка Neon, разработчик Sol Medium, проверяющий Sol High. Уточнения исполнения — docs/stage-2-foundation.md. Этап 3 реализован и проверен на Neon и CI Linux/PostgreSQL; этапы 4–11 не начаты. Проверки этапа3 — docs/stage-3-booking-rules.md. Роли: [agent-team.md](../../agent-team.md).
 
 ## Global Constraints
 
@@ -116,7 +116,7 @@ tests/fixtures/               вымышленные пользователи/м
 
 **Interfaces:** `effectiveOffer(barberId:Id,serviceIds:Id[],tx:Tx):Promise<{items:OfferItem[],priceKopecks:number,durationMinutes:number}>`; `approvalDeadline(now:Instant,work:Interval[]):Instant|null`; `listSlots(input:{barberId:Id,serviceIds:Id[],from:Instant,to:Instant,actorMode:'client'|'staff',excludeVisitId?:Id},db:Database):Promise<Interval[]>`; добавляет Command `requestBooking`, `confirmBooking`, `declineBooking`, `cancelBooking`, с ID/ожидаемой версией для изменений. Источник правды всегда повторно проверяется в execute.
 
-- [ ] Чистые тесты: override ранга; два предложения 60+30=90 минут и сумма копеек; нет тарифа → недоступно; шаг 30 минут, длительность 45 сохраняется; соседние интервалы разрешены; перерыв/выходной/исключение; минимум ровно 2 часа; граница today+30. Для смены 10–20 МСК now19:40 → deadline20:40; now21:00 → nextWorkingStart+1h; deadline>=visitStart → слот скрыт. `npm run test:unit -- tests/unit/pricing.test.ts tests/unit/schedule.test.ts` сначала FAIL, затем PASS.
+- [x] Чистые тесты: override ранга; два предложения 60+30=90 минут и сумма копеек; нет тарифа → недоступно; шаг 30 минут, длительность 45 сохраняется; соседние интервалы разрешены; перерыв/выходной/исключение; минимум ровно 2 часа; граница today+30. Для смены 10–20 МСК now19:40 → deadline20:40; now21:00 → nextWorkingStart+1h; deadline>=visitStart → слот скрыт. `npm run test:unit -- tests/unit/pricing.test.ts tests/unit/schedule.test.ts` сначала FAIL, затем PASS.
 
 Ключевое утверждение `approval_deadline_continues_after_shift` в schedule.test.ts (часы в ISO — UTC):
 
@@ -126,9 +126,9 @@ expect(approvalDeadline('2026-11-06T16:40:00.000Z', [
 ])).toBe('2026-11-06T17:40:00.000Z');
 ```
 
-- [ ] Интеграционные тесты: два независимых запроса 10:00–11:30 и 11:00–12:00 → один успех; один клиент одновременно к двум мастерам → одна pending; два последовательных непересекающихся визита допустимы; expired hold не мешает новому; подтверждение ровно в expiresAt запрещено; повтор callback не создаёт новую заявку. `npm run test:integration -- tests/integration/booking-races.test.ts` сначала FAIL, после реализации PASS на настоящем PostgreSQL.
-- [ ] Реализовать эффективные тарифы, UTC/локальные даты через Intl, график/исключения, половинные интервалы, снимки и pending hold. Под shop lock завершать истёкшие затронутые заявки, затем права/пересечения/лимиты; подтверждение до expiresAt, отмена клиента только до начала. Снимок нельзя пересчитать по текущему каталогу при подтверждении.
-- [ ] Добавить тест конфликта изменения графика с заявкой через одновременные соединения: либо изменение применено и заявка отклонена, либо заявка принята и изменение заблокировано. Все изменяющие пути используют тот же shop lock. Typecheck + unit + integration → PASS. Коммит `feat: enforce pricing schedules and atomic booking rules`, push, сверка SHA.
+- [x] Интеграционные тесты: два независимых запроса 10:00–11:30 и 11:00–12:00 → один успех; один клиент одновременно к двум мастерам → одна pending; два последовательных непересекающихся визита допустимы; expired hold не мешает новому; подтверждение ровно в expiresAt запрещено; повтор callback не создаёт новую заявку. `npm run test:integration -- tests/integration/booking-races.test.ts` сначала FAIL, после реализации PASS на настоящем PostgreSQL.
+- [x] Реализовать эффективные тарифы, UTC/локальные даты через Intl, график/исключения, половинные интервалы, снимки и pending hold. Под shop lock завершать истёкшие затронутые заявки, затем права/пересечения/лимиты; подтверждение до expiresAt, отмена клиента только до начала. Снимок нельзя пересчитать по текущему каталогу при подтверждении.
+- [x] Добавить тест конфликта изменения графика с заявкой через одновременные соединения: либо изменение применено и заявка отклонена, либо заявка принята и изменение заблокировано. Все изменяющие пути используют тот же shop lock. Typecheck + unit + integration → PASS. Коммит `feat: enforce pricing schedules and atomic booking rules`, push, сверка SHA.
 
 ## Этап 4: надёжные уведомления и экономный планировщик
 
