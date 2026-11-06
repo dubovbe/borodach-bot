@@ -5,3 +5,6 @@ BOT_INFO='{"id":123456,"is_bot":true,"first_name":"Test","username":"replace_tes
 WEBHOOK_SECRET=REPLACE_WITH_RANDOM_SECRET
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
 FIRST_ADMIN_ID=123456789
+
+# Separate stable random secret, at least 32 characters; required only for barber invitations.
+INVITATION_SECRET=REPLACE_WITH_SEPARATE_RANDOM_SECRET

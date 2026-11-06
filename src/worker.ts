@@ -24,7 +24,7 @@ export default {
     catch { return new Response('Invalid update', { status: 400 }); }
     if (!update || !Number.isSafeInteger(update.update_id)) return new Response('Invalid update', { status: 400 });
     try {
-      const bot = createBot(env, new Repository(createDatabase(env.DATABASE_URL), env.FIRST_ADMIN_ID));
+      const bot = createBot(env, new Repository(createDatabase(env.DATABASE_URL), env.FIRST_ADMIN_ID, {invitationSecret:env.INVITATION_SECRET,botUsername:JSON.parse(env.BOT_INFO).username}));
       await bot.handleUpdate(update);
       return new Response('OK');
     } catch {

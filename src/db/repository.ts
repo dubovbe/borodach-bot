@@ -1,9 +1,11 @@
 import { DomainError, type Actor, type Command, type CommandResult, type Instant } from '../domain/types';
 import type { Database, Tx } from './client';
 import { cleanupExpired, executeBooking, nextDue, expireJob } from '../booking/service';
+import { acceptContact, issueBarberInvite, redeemInvite, revokeInvite, type IdentityOptions } from '../identity/service';
+import { CONTACT_TEXT, CONTACT_MARKUP, REMOVE_KEYBOARD } from '../bot/screens';
 export const START_TEXT = 'Тестовый бот запущен. Запись пока недоступна.';
 export class Repository {
-    constructor(readonly database: Database, readonly firstAdminId = '') {
+    constructor(readonly database: Database, readonly firstAdminId = '', readonly identityOptions: IdentityOptions = {}) {
     }
     async replay(updateId: string): Promise<CommandResult | null> {
         return this.database.transaction(async (tx) => this.readResult(tx, updateId));
@@ -25,7 +27,24 @@ export class Repository {
             await tx.query('SAVEPOINT business', []);
             let result: CommandResult;
             try {
-                if (command.kind !== 'start') {
+                if (command.kind === 'updateContact') {
+                    const clientId = await acceptContact(actor, command.contact, tx);
+                    result = { entityId: clientId, status: 'contact_updated', nextWake: now };
+                    await this.record(tx, actor, userId, updateId, now, 'contact_updated', 'Телефон подтверждён.', REMOVE_KEYBOARD);
+                } else if (command.kind === 'issueBarberInvite') {
+                    const id = await issueBarberInvite(actor, command.barberId, tx, this.identityOptions);
+                    result = { entityId: id, status: 'invite_issued', nextWake: now };
+                    await tx.query('INSERT INTO audit_events(update_id,actor_id,kind,entity_id,created_at) VALUES($1,$2,$3,$4,$5)', [updateId, userId, 'invite_issued', id, now]);
+                    await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at) VALUES($1,$2,'invitation',$3,$4::jsonb,$5)`, [`invitation:${id}`, updateId, actor.telegramId, JSON.stringify({ invitationId: id }), now]);
+                } else if (command.kind === 'revokeInvite') {
+                    const id = await revokeInvite(actor, command.invitationId, tx);
+                    result = { entityId: id, status: 'invite_revoked', nextWake: now };
+                    await this.record(tx, actor, userId, updateId, now, 'invite_revoked', 'Приглашение отозвано.');
+                } else if (command.kind === 'redeemInvite') {
+                    const id = await redeemInvite(actor, command.token, tx);
+                    result = { entityId: id, status: 'invite_redeemed', nextWake: now };
+                    await this.record(tx, actor, userId, updateId, now, 'invite_redeemed', 'Профиль барбера подключён.');
+                } else if (command.kind !== 'start') {
                     result = await executeBooking({ tx, userId, updateId }, command);
                 }
                 else {
@@ -34,8 +53,10 @@ export class Repository {
                     if (actor.telegramId === this.firstAdminId) {
                         await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId, 'admin']);
                     }
+                    await tx.query("INSERT INTO clients(user_id,name) VALUES($1,'') ON CONFLICT(user_id) DO NOTHING", [userId]);
+                    const verified = await tx.query('SELECT 1 FROM phone_claims WHERE user_id=$1 AND released_at IS NULL', [userId]);
                     result = { entityId: userId, status: 'started', nextWake: now };
-                    await this.record(tx, actor, userId, updateId, now, 'start', START_TEXT);
+                    await this.record(tx, actor, userId, updateId, now, 'start', verified.length ? START_TEXT : CONTACT_TEXT, verified.length ? REMOVE_KEYBOARD : CONTACT_MARKUP);
                 }
             }
             catch (error) {
@@ -61,9 +82,9 @@ export class Repository {
       ON CONFLICT(telegram_id) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at,unreachable_at=NULL,version=telegram_users.version+1 RETURNING id`, [actor.telegramId, now]);
         return user[0].id;
     }
-    private async record(tx: Tx, actor: Actor, userId: string, updateId: string, now: Instant, kind: string, text: string): Promise<void> {
+    private async record(tx: Tx, actor: Actor, userId: string, updateId: string, now: Instant, kind: string, text: string, replyMarkup?: unknown): Promise<void> {
         await tx.query('INSERT INTO audit_events(update_id,actor_id,kind,created_at) VALUES($1,$2,$3,$4)', [updateId, userId, kind, now]);
-        await tx.query('INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at) VALUES($1,$2,$3,$4,$5::jsonb,$6)', [`start:${updateId}`, updateId, 'start', actor.telegramId, JSON.stringify({ text }), now]);
+        await tx.query('INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at) VALUES($1,$2,$3,$4,$5::jsonb,$6)', [`start:${updateId}`, updateId, 'start', actor.telegramId, JSON.stringify({ text, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }), now]);
     }
     async nextDue(): Promise<Instant | null> {
         return this.database.read(sql => nextDue({ ...sql, now: new Date().toISOString() }));

@@ -31,8 +31,11 @@ beforeEach(async () => {
     for (const id of ['100', '101', '200', '201']) {
         const user = (await admin.query('INSERT INTO telegram_users(telegram_id,last_seen_at) VALUES($1,$2) RETURNING id', [id, now])).rows[0].id;
         await admin.query('INSERT INTO roles(user_id,role) VALUES($1,$2)', [user, id === '201' ? 'admin' : id === '200' ? 'barber' : 'client']);
-        if (id === '100' || id === '101')
-            await admin.query('INSERT INTO clients(user_id,name) VALUES($1,$2)', [user, 'Test']);
+        if (id === '100' || id === '101') {
+            const phone = id === '100' ? '+79123456789' : '+79123456780';
+            const client = (await admin.query('INSERT INTO clients(user_id,name,phone) VALUES($1,$2,$3) RETURNING id', [user, 'Test',phone])).rows[0].id;
+            await admin.query('INSERT INTO phone_claims(client_id,user_id,phone,claimed_at) VALUES($1,$2,$3,$4)',[client,user,phone,now]);
+        }
         if (id === '200')
             await admin.query('UPDATE barbers SET user_id=$1 WHERE id=$2', [user, b]);
     }

@@ -1,3 +1,4 @@
+import { safeReplyMarkup } from '../bot/screens';
 export type Delivery = {
     id: string;
     chatId: string;
@@ -28,6 +29,8 @@ export class TelegramTransport implements Transport {
             text?: unknown;
         }).text !== 'string')
             throw new DeliveryError('invalid_payload');
+        let replyMarkup: unknown;
+        try { replyMarkup = safeReplyMarkup((job.payload as {reply_markup?:unknown}).reply_markup); } catch { throw new DeliveryError('invalid_payload'); }
         const controller = new AbortController();
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
@@ -36,7 +39,7 @@ export class TelegramTransport implements Transport {
                     const response = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: (job.payload as {
                                 text: string;
-                            }).text, chat_id: job.chatId }), signal: controller.signal
+                            }).text, chat_id: job.chatId, ...(replyMarkup ? {reply_markup:replyMarkup} : {}) }), signal: controller.signal
                     });
                     const data = await response.json() as {
                         ok?: boolean;

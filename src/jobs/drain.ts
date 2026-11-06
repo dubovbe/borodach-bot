@@ -12,5 +12,5 @@ export async function drainBatch(repository: Pick<Repository, 'drainDue' | 'next
 }
 export async function drainWake(env: Env, now: Instant): Promise<Instant | null> {
     const database = createDatabase(env.DATABASE_URL);
-    return drainBatch(new Repository(database), new Outbox(database, new TelegramTransport(env.BOT_TOKEN)), now);
+    return drainBatch(new Repository(database), new Outbox(database, new TelegramTransport(env.BOT_TOKEN), {invitationSecret:env.INVITATION_SECRET,botUsername:JSON.parse(env.BOT_INFO).username}), now);
 }

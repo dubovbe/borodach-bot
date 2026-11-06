@@ -4,5 +4,6 @@ export interface Env {
   WEBHOOK_SECRET: string;
   DATABASE_URL: string;
   FIRST_ADMIN_ID: string;
+  INVITATION_SECRET?: string;
   SCHEDULER: DurableObjectNamespace;
 }
