@@ -4,6 +4,7 @@ import { cleanupExpired, executeBooking, nextDue, expireJob } from '../booking/s
 import { acceptContact, issueBarberInvite, redeemInvite, revokeInvite, type IdentityOptions } from '../identity/service';
 import { REMOVE_KEYBOARD } from '../bot/screens';
 import { createClientController } from '../bot/client';
+import { reconcileReminders,setReminderHours } from '../notifications/reminders';
 export class Repository {
     constructor(readonly database: Database, readonly firstAdminId = '', readonly identityOptions: IdentityOptions = {}) {
     }
@@ -35,6 +36,7 @@ export class Repository {
             try {
                 if (command.kind === 'updateContact') {
                     const clientId = await acceptContact(actor, command.contact, tx);
+                    await reconcileReminders({tx,userId,updateId});
                     result = { entityId: clientId, status: 'contact_updated', nextWake: now };
                     await this.record(tx, actor, userId, updateId, now, 'contact_updated', 'Телефон подтверждён.', REMOVE_KEYBOARD);
                     result = await createClientController({tx,userId,updateId},actor).resumeContact() ?? result;
@@ -51,6 +53,9 @@ export class Repository {
                     const id = await redeemInvite(actor, command.token, tx);
                     result = { entityId: id, status: 'invite_redeemed', nextWake: now };
                     await this.record(tx, actor, userId, updateId, now, 'invite_redeemed', 'Профиль барбера подключён.');
+                } else if(command.kind==='setReminderHours'){
+                    await setReminderHours({tx,userId,updateId},command.hours);
+                    result={status:'reminder_updated',nextWake:await nextDue(tx)};
                 } else if (command.kind === 'clientAction') {
                     result = await createClientController({tx,userId,updateId},actor).handleClientAction(actor,command.callbackId,tx);
                 } else if (command.kind === 'saveDraftInput') {
@@ -64,6 +69,7 @@ export class Repository {
                         await tx.query('INSERT INTO roles(user_id,role) VALUES($1,$2) ON CONFLICT(user_id,role) DO NOTHING', [userId, 'admin']);
                     }
                     await tx.query("INSERT INTO clients(user_id,name) VALUES($1,'') ON CONFLICT(user_id) DO NOTHING", [userId]);
+                    await reconcileReminders({tx,userId,updateId});
                     if(command.payload?.startsWith('i_')){
                         const id=await redeemInvite(actor,command.payload.slice(2),tx);
                         result={entityId:id,status:'invite_redeemed',nextWake:now};

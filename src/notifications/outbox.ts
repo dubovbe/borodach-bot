@@ -65,6 +65,12 @@ export class Outbox {
                         invalid = 'invalid_payload';
                     else if (!entity || entity.version !== row.entity_version || entity.status !== expected)
                         invalid = 'stale_entity';
+                    if(!invalid&&row.kind==='reminder'){
+                        const eligible=await tx.query(`SELECT v.id FROM visits v JOIN clients c ON c.id=v.client_id
+                          JOIN telegram_users u ON u.id=c.user_id WHERE v.id=$1 AND v.version=$2
+                          AND v.status='confirmed' AND v.start_at>$3 AND u.telegram_id=$4`,[row.entity_id,row.entity_version,tx.now,row.chat_id]);
+                        if(!eligible.length)invalid='stale_entity';
+                    }
                 }
                 if (!invalid && row.kind === 'booking') {
                     if(typeof row.payload.staffUserId==='string'){

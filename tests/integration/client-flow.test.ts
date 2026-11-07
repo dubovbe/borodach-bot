@@ -11,6 +11,7 @@ import { hashToken } from '../../src/identity/service';
 import type { Command } from '../../src/domain/types';
 import type { Database } from '../../src/db/client';
 import type { Delivery } from '../../src/notifications/transport';
+import { redeliverOnceOnLockTimeout } from './redelivery';
 const schema=`stage6_${crypto.randomUUID().replaceAll('-','')}`;
 const scoped=new URL(testDatabaseUrl()); scoped.searchParams.set('options',`-c search_path=${schema}`);
 const now='2026-11-06T04:00:00.000Z', barber='00000000-0000-4000-8000-000000000002';
@@ -26,7 +27,7 @@ afterAll(async()=>{if(created)await sql.query(`DROP SCHEMA IF EXISTS "${schema}"
 beforeEach(async()=>{await sql.query('TRUNCATE outbox,jobs,telegram_users,clients,visits,barbers CASCADE');await seed(scoped.toString());for(let d=1;d<=7;d++)await sql.query('INSERT INTO weekly_hours(barber_id,weekday,start_minute,end_minute) VALUES($1,$2,0,1200)',[barber,d]);const u=(await sql.query('INSERT INTO telegram_users(telegram_id,last_seen_at) VALUES(200,$1) RETURNING id',[now])).rows[0].id;await sql.query("INSERT INTO roles(user_id,role) VALUES($1,'barber')",[u]);await sql.query('UPDATE barbers SET user_id=$1 WHERE id=$2',[u,barber]);});
 it('full persistent form only holds on submit, concurrent submit and replay create one pending, independent staff decision confirms details',async()=>{
   await toSummary();expect((await sql.query('SELECT * FROM holds')).rows).toHaveLength(0);
-  const callbackId=await button('Отправить');const results=await Promise.all([execute({kind:'clientAction',callbackId}),execute({kind:'clientAction',callbackId})]);expect(results.filter(r=>r.status==='pending')).toHaveLength(1);
+  const callbackId=await button('Отправить'),command:Command={kind:'clientAction',callbackId},firstId=String(update++),secondId=String(update++);const results=await Promise.all([redeliverOnceOnLockTimeout(()=>execute(command,'100',now,firstId)),redeliverOnceOnLockTimeout(()=>execute(command,'100',now,secondId))]);expect(results.filter(r=>r.status==='pending')).toHaveLength(1);
   expect((await sql.query('SELECT * FROM visits')).rows).toHaveLength(1);
   await execute({kind:'start',payload:null});
   const deliveries:Delivery[]=[];await new Outbox(db(),{send:async d=>{deliveries.push(d);return {messageId:'1'};}}).deliver(now,5);

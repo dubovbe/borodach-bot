@@ -3,6 +3,7 @@ import { DomainError, type Command, type CommandResult, type Id, type Instant, t
 import { isMeaningfulName } from '../identity/service';
 import { queueStaffDecision } from '../bot/staff';
 import { reviewedQuote } from './quote';
+import { reconcileReminders } from '../notifications/reminders';
 import { approvalDeadline, busyIntervals, prepareAvailability, validateSchedule, workBetween } from '../schedule/service';
 function refuse(code: string): never { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); }
 export type Context = {
@@ -91,9 +92,9 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-} | IdentityCommand | import('../domain/types').ClientCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
+} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'}>, expectedReviewedQuote?:string): Promise<CommandResult> {
     const { tx, userId } = c;
-    if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking'].includes(command.kind)) refuse('forbidden');
+    if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking','withdrawBooking'].includes(command.kind)) refuse('forbidden');
     const roles = await tx.query<{
         role: string;
     }>('SELECT role FROM roles WHERE user_id=$1', [userId]);
@@ -178,7 +179,8 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         refuse('not_found');
     const staff = admin || (visit.barber_active && visit.barber_user_id === userId && roles.some(r => r.role === 'barber'));
     const owner = visit.client_user_id === userId;
-    if (command.kind === 'cancelBooking' ? (!owner && !staff) : !staff)
+    const ownPurpose=command.kind==='withdrawBooking'||command.kind==='cancelBooking'&&command.purpose==='client';
+    if (ownPurpose ? !owner : command.kind === 'cancelBooking' ? (!owner && !staff) : !staff)
         refuse('forbidden');
     if (!Number.isInteger(command.expectedVersion) || visit.version !== command.expectedVersion)
         refuse('stale_version');
@@ -194,6 +196,11 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         if (visit.status !== 'pending')
             refuse('invalid_state');
         status = 'declined';
+    }
+    else if(ownPurpose){
+        if(visit.status!==(command.kind==='withdrawBooking'?'pending':'confirmed'))refuse('invalid_state');
+        if(Date.parse(stamp(visit.start_at))<=Date.parse(tx.now))refuse('already_started');
+        status='cancelled';
     }
     else {
         if (!['pending', 'confirmed'].includes(visit.status))
@@ -213,7 +220,8 @@ export async function executeBooking(c: Context, command: Exclude<Command, {
         await closeTransfers(c, visit.id);
     }
     await tx.query('UPDATE visits SET status=$1,version=version+1 WHERE id=$2', [status, visit.id]);
-    await event(c, `visit_${status}`, visit.id, visit.id, command.reason?.trim());
+    await event(c, `visit_${status}`, visit.id, visit.id, 'reason' in command?command.reason?.trim():undefined);
+    if(status==='confirmed')await reconcileReminders({...c,userId:null},{visitId:visit.id,confirmedAt:tx.now});
     return { entityId: visit.id, status, nextWake: await nextDue(tx) };
 }
 
