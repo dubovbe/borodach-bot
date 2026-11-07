@@ -41,6 +41,7 @@ export function clientDatabase(){
     if(sql.startsWith('SELECT result FROM processed_updates'))return results.has(v[0])?[{result:results.get(v[0])}]:[];
     if(sql.startsWith('INSERT INTO processed_updates')){results.set(v[0],JSON.parse(v[2]));return [];}
     if(sql.startsWith('INSERT INTO telegram_users'))return [{id:uid(v[0])}];
+    if(sql.startsWith("SELECT d.state->>'scope' AS scope")){const d=[...drafts.values()].find(d=>d.user_id===v[0]);return d?[{scope:d.state.scope??null,admin:byId(v[0]).roles.includes('admin')}]:[];}
     if(sql.startsWith('SELECT * FROM drafts'))return [...drafts.values()].filter(d=>d.user_id===v[0]);
     if(sql.startsWith('WITH ended AS')){for(const d of drafts.values())if(d.user_id===v[0]){d.expires_at=v[1];d.version++;for(const o of outbox)if(o.draft_id===d.id&&['pending','leased'].includes(o.status))o.status='cancelled';}return [];}
     if(sql.startsWith('INSERT INTO drafts')){let d=[...drafts.values()].find(d=>d.user_id===v[0]);d={id:d?.id??crypto.randomUUID(),user_id:v[0],barber_id:v[1],state:JSON.parse(v[2]),expires_at:new Date(Date.parse(now)+1800000).toISOString(),version:(d?.version??0)+1};drafts.set(d.id,d);return [structuredClone(d)];}

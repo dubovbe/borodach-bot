@@ -1,5 +1,5 @@
 import {prepareTransferCard,transferScreenAllowed,type TransferScreenScope} from '../booking/transfers';
-import { renderInvitation, type IdentityOptions } from '../identity/service';
+import { renderPublicLink, renderInvitation, type IdentityOptions } from '../identity/service';
 import { safeReplyMarkup } from '../bot/screens';
 import type { Database, Tx } from '../db/client';
 import { nextDue } from '../booking/service';
@@ -83,6 +83,9 @@ export class Outbox {
                     }else text = await bookingText(tx, row);
                 }
             }
+            else if(row.kind==='public_link'){
+                text=await renderPublicLink(tx,row.payload.barberId,row.chat_id,this.identityOptions);if(!text)invalid='stale_entity';
+            }
             else if (row.kind === 'invitation') {
                 text = await renderInvitation(tx,row.payload.invitationId,row.chat_id,this.identityOptions);
                 if (!text) invalid = 'stale_entity';
@@ -90,6 +93,7 @@ export class Outbox {
             else if(row.kind==='client_screen'){
                 const current=await tx.query(`SELECT d.id FROM drafts d JOIN telegram_users u ON u.id=d.user_id WHERE d.id=$1 AND d.version=$2 AND d.expires_at>$3 AND u.telegram_id=$4`,[row.draft_id??null,row.draft_version??null,tx.now,row.chat_id]);
                 if(!current.length)invalid='stale_entity';
+                if(!invalid&&row.payload.adminScreen){const roles=await tx.query<{role:string}>(`SELECT role FROM roles WHERE user_id=(SELECT id FROM telegram_users WHERE telegram_id=$1)`,[row.chat_id]);if(!roles.some(r=>r.role==='admin'))invalid='stale_entity';}
                 if(!invalid&&row.payload.transferScreen&&!await transferScreenAllowed(tx,row.chat_id,row.payload.transferScreen as TransferScreenScope))invalid='stale_entity';
             }
             else if (!['start', 'delivery_failure'].includes(row.kind))

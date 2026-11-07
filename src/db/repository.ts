@@ -1,3 +1,5 @@
+import {isAdminCommand,executeAdmin} from '../catalog/management';
+import {handleAdmin} from '../bot/admin';
 import { DomainError, type Actor, type Command, type CommandResult, type Instant } from '../domain/types';
 import type { Database, Tx } from './client';
 import { cleanupExpired, executeBooking, nextDue, expireJob } from '../booking/service';
@@ -40,7 +42,7 @@ export class Repository {
                     await reconcileReminders({tx,userId,updateId});
                     result = { entityId: clientId, status: 'contact_updated', nextWake: now };
                     await this.record(tx, actor, userId, updateId, now, 'contact_updated', 'Телефон подтверждён.', REMOVE_KEYBOARD);
-                    result = await createClientController({tx,userId,updateId},actor).resumeContact() ?? result;
+                    result = await handleAdmin({tx,userId,updateId},actor,{contact:true},this.identityOptions) ?? await createClientController({tx,userId,updateId},actor).resumeContact() ?? result;
                 } else if (command.kind === 'issueBarberInvite') {
                     const id = await issueBarberInvite(actor, command.barberId, tx, this.identityOptions);
                     result = { entityId: id, status: 'invite_issued', nextWake: now };
@@ -60,9 +62,11 @@ export class Repository {
                 } else if (command.kind==='requestTransfer'||command.kind==='proposeTransfer'||command.kind==='decideTransfer'||command.kind==='recordPhoneAgreement'){
                     result=await executeTransfer({tx,userId,updateId},command);
                 } else if (command.kind === 'clientAction') {
-                    result = await createClientController({tx,userId,updateId},actor).handleClientAction(actor,command.callbackId,tx);
+                    result = await handleAdmin({tx,userId,updateId},actor,{callbackId:command.callbackId},this.identityOptions) ?? await createClientController({tx,userId,updateId},actor).handleClientAction(actor,command.callbackId,tx);
                 } else if (command.kind === 'saveDraftInput') {
-                    result = await createClientController({tx,userId,updateId},actor).saveDraftInput(command.text);
+                    result = await handleAdmin({tx,userId,updateId},actor,{text:command.text},this.identityOptions) ?? await createClientController({tx,userId,updateId},actor).saveDraftInput(command.text);
+                } else if(isAdminCommand(command)){
+                    result=await executeAdmin({tx,userId,updateId},command,this.identityOptions);
                 } else if (command.kind !== 'start') {
                     result = await executeBooking({ tx, userId, updateId }, command);
                 }
