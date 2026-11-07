@@ -35,7 +35,7 @@ it('upgrade_001_preserves_sent_and_legacy_start_and_booking_rows', async () => {
         await migrate(scoped.toString());
         await migrate(scoped.toString());
         expect((await client.query('SELECT logical_key,status FROM outbox ORDER BY logical_key')).rows).toEqual([{ logical_key: 'booking', status: 'pending' }, { logical_key: 'invalidbooking', status: 'failed' }, { logical_key: 'pending', status: 'pending' }, { logical_key: 'sent', status: 'sent' }]);
-        const expectedMigrations = await Promise.all(['001-core.sql', '002-notifications.sql', '003-identity.sql', '004-client-flow.sql','005-consent-transfers.sql'].map(async name => ({
+        const expectedMigrations = await Promise.all(['001-core.sql', '002-notifications.sql', '003-identity.sql', '004-client-flow.sql','005-consent-transfers.sql','006-entry-callbacks.sql'].map(async name => ({
             name, checksum: createHash('sha256').update(await readFile(new URL(`../../src/db/schema/${name}`, import.meta.url), 'utf8')).digest('hex')
         })));
         expect((await client.query('SELECT name,checksum FROM schema_migrations ORDER BY name')).rows).toEqual(expectedMigrations);

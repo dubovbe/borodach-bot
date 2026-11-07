@@ -54,7 +54,8 @@ export async function event(c: Context, kind: string, entityId: Id, visitId: Id,
     ), messages AS (
       INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,entity_id,entity_version,entity_type)
       SELECT $6::text||':'||$2::text||':'||e.version::text||':'||r.telegram_id::text,$3,'booking',r.telegram_id,
-        jsonb_build_object('event',$6::text,'visitId',$7::text,'snapshot',d.snapshot)||
+        jsonb_build_object('event',$6::text,'visitId',$7::text,'snapshot',d.snapshot,'cancellationEntry',
+          $6='visit_cancelled' AND EXISTS(SELECT 1 FROM visits cv JOIN clients cc ON cc.id=cv.client_id JOIN telegram_users cu ON cu.id=cc.user_id WHERE cv.id=$7::uuid AND cu.telegram_id=r.telegram_id))||
         CASE WHEN $8::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('reason',$8::text) END||
         CASE WHEN $10::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('text',$10::text) END,
         $9,$2,e.version,$1
@@ -95,7 +96,7 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'} | import('../domain/types').TransferCommand | import('../domain/types').AdminCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
+} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'} | import('../domain/types').TransferCommand | import('../domain/types').AdminCommand | import('../domain/types').StaffCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
     const { tx, userId } = c;
     if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking','withdrawBooking'].includes(command.kind)) refuse('forbidden');
     if (command.kind === 'changeSchedule') return saveSchedule(c,command.barberId,command.expectedVersion,command.schedule);

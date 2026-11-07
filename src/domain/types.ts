@@ -16,7 +16,11 @@ export type TransferCommand = {kind:'requestTransfer';visitId:Id;expectedVersion
  | {kind:'proposeTransfer';visitId:Id;expectedVersion:number;newStart:Instant;reason?:string}
  | {kind:'decideTransfer';transferId:Id;expectedVersion:number;accept:boolean}
  | {kind:'recordPhoneAgreement';transferId:Id;expectedVersion:number};
-export type Command = AdminCommand | TransferCommand | IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
+export type StaffCommand = {kind:'createManualBooking';barberId:Id;clientName:string;phone:string;serviceIds:Id[];start:Instant}
+ | {kind:'staffCancelBooking';visitId:Id;expectedVersion:number;reason:string}
+ | {kind:'markOutcome';visitId:Id;expectedVersion:number;outcome:'completed'|'no_show'}
+ | {kind:'correctOutcome';visitId:Id;expectedVersion:number;outcome:'completed'|'no_show';reason:string};
+export type Command = StaffCommand | AdminCommand | TransferCommand | IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
  | { kind:'requestBooking'; barberId:Id; serviceIds:Id[]; start:Instant }
  | { kind:'confirmBooking'|'declineBooking'|'cancelBooking'; visitId:Id; expectedVersion:number; reason?:string;purpose?:'client' }
  | {kind:'setReminderHours';hours:number}

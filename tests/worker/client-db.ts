@@ -5,12 +5,18 @@ export const fixtureBarber='00000000-0000-4000-8000-000000000002';
 export const fixtureService='00000000-0000-4000-8000-000000000003';
 export function clientDatabase(){
   const now='2026-11-06T04:00:00.000Z',users=new Map<string,any>(),drafts=new Map<string,any>(),callbacks=new Map<string,any>(),staffCallbacks=new Map<string,any>(),transferCallbacks=new Map<string,any>(),transfers=new Map<string,any>(),results=new Map<string,any>(),visits=new Map<string,any>(),outbox:any[]=[];
-  let price=150000, empty=false, noWork=false;
+  let price=150000, empty=false, noWork=false,reportValue='0';
   const user=(id:string)=>{if(!users.has(id))users.set(id,{id:crypto.randomUUID(),telegram_id:id,version:1,roles:id==='200'?['barber']:['client'],client:crypto.randomUUID(),name:'',phone:null,verified:false,reminder_hours:2});return users.get(id);};
   const byId=(id:string)=>[...users.values()].find(u=>u.id===id);
   const uid=(id:string)=>user(id).id;
   const record=(v:any)=>outbox.push({id:crypto.randomUUID(),status:'pending',due_at:now,attempts:0,entity_id:null,entity_version:null,entity_type:null,...v});
   const query=async(sql:string,v:any[]=[]):Promise<any[]>=>{
+    if(sql.startsWith('SELECT * FROM entry_callbacks'))return [];
+    if(sql.startsWith('SELECT\n  EXISTS(SELECT 1 FROM roles')){const u=byId(v[0]);return u?[{admin:u.roles.includes('admin'),barber:u.roles.includes('barber'),own:u.telegram_id==='200'?fixtureBarber:null,active:true}]:[];}
+    if(sql.startsWith('SELECT p.id,p.client_id,p.user_id'))return [];
+    if(sql.startsWith('SELECT id FROM clients WHERE user_id IS NULL'))return [];
+    if(sql.startsWith('SELECT v.id,v.version,v.status,v.barber_id'))return [];
+    if(sql.startsWith('WITH actor AS (')){const u=user(v[0]);return [{allowed:u.roles.includes('admin')||u.telegram_id==='200'&&u.roles.includes('barber')&&(!v[1]||v[1]===fixtureBarber),completed:'0',no_shows:'0',value:reportValue}];}
     if(sql.startsWith('SELECT v.*,cl.user_id')){
       const x=visits.get(v[0]);return x?[{...x,schedule_generation:x.schedule_generation??1,client_user_id:[...users.values()].find(u=>u.client===x.client_id)?.id??null,barber_user_id:x.barber_user_id??uid('200'),barber_active:true,barber:'Вымышленный мастер',actor_roles:byId(v[1])?.roles??[],author_roles:byId(v[2])?.roles??[]}]:[];
     }
@@ -71,7 +77,7 @@ export function clientDatabase(){
     if(sql.startsWith('SELECT id,name FROM barbers'))return empty?[]:[{id:fixtureBarber,name:'Вымышленный мастер'}];
     if(sql.startsWith('SELECT id FROM barbers'))return v[0]===fixtureBarber?[{id:fixtureBarber}]:[];
     if(sql.startsWith('SELECT s.id,s.name'))return empty?[]:[{id:fixtureService,name:'Тестовая стрижка'},{id:'00000000-0000-4000-8000-000000000004',name:'Тестовая борода'}];
-    if(sql.startsWith('SELECT s.id AS service_id'))return v[1].filter((id:string)=>[fixtureService,'00000000-0000-4000-8000-000000000004'].includes(id)).map((id:string)=>({service_id:id,name:id===fixtureService?'Тестовая стрижка':'Тестовая борода',price_kopecks:price,duration_minutes:45}));
+    if(sql.startsWith('SELECT s.id AS service_id'))return empty?[]:v[1].filter((id:string)=>[fixtureService,'00000000-0000-4000-8000-000000000004'].includes(id)).map((id:string)=>({service_id:id,name:id===fixtureService?'Тестовая стрижка':'Тестовая борода',price_kopecks:price,duration_minutes:45}));
     if(sql.startsWith('SELECT weekday,start_minute'))return noWork?[]:[1,2,3,4,5,6,7].map(weekday=>({weekday,start_minute:0,end_minute:1200}));
     if(sql.startsWith('SELECT local_date::text'))return [];
     if(sql.startsWith('SELECT booking_horizon_days'))return [{booking_horizon_days:30}];
@@ -106,5 +112,5 @@ export function clientDatabase(){
   };
   const tx:Tx={now,query};
   const database:Database={read:run=>run({query}),transaction:run=>run(tx)};
-  return {database,now,users,drafts,callbacks,transferCallbacks,transfers,outbox,visits,user,setPrice:(n:number)=>{price=n;},setEmpty:()=>{empty=true;},setNoWork:()=>{noWork=true;}};
+  return {database,now,users,drafts,callbacks,transferCallbacks,transfers,outbox,visits,user,setPrice:(n:number)=>{price=n;},setReportValue:(value:string)=>{reportValue=value;},setEmpty:()=>{empty=true;},setNoWork:()=>{noWork=true;}};
 }

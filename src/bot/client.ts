@@ -40,7 +40,7 @@ export function createClientController(context:Context,owner:Actor){
   };
   const button=(text:string,action:Record<string,unknown>):ScreenButton=>({text:text.slice(0,100),action});
   const back=()=>button('Назад',{kind:'back'});
-  const managementButtons=()=>[...(row?.state.adminVisible?[button('Управление',{kind:'admin'})]:[]),button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Записи для переноса',{kind:'staffTransfers'})]:[])];
+  const managementButtons=()=>[...(row?.state.adminVisible?[button('Управление',{kind:'admin'})]:[]),button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Рабочее место',{kind:'staff',scope:'staff'}),button('Статистика',{kind:'staffReport',scope:'staff'}),button('Записи для переноса',{kind:'staffTransfers'})]:[])];
   const submittedContent=()=>({text:'Заявка отправлена и ожидает решения мастера.',rows:[[button('Новая запись',{kind:'newBooking'})]]});
   const renderer=createScreenRenderer({
     callbacks:async(d,rows)=>{

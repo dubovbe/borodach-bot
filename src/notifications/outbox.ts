@@ -6,6 +6,8 @@ import { nextDue } from '../booking/service';
 import type { Instant } from '../domain/types';
 import { DeliveryError, type Delivery, type Transport } from './transport';
 import { prepareStaffDecision } from '../bot/staff';
+import {prepareCancellationEntry} from '../bot/entry';
+import {staffScreenAllowed,type StaffScreenScope} from '../bot/staff-workspace';
 type Row = {
     id: string;
     kind: string;
@@ -80,7 +82,13 @@ export class Outbox {
                     }else if(typeof row.payload.staffUserId==='string'){
                         const card=await prepareStaffDecision(tx,row.entity_id!,row.payload.staffUserId,row.chat_id,row.payload.buttons);
                         if(!card)invalid='stale_entity';else {text=card.text;replyMarkup=safeReplyMarkup(card.keyboard);}
-                    }else text = await bookingText(tx, row);
+                    }else {
+                        text = await bookingText(tx, row);
+                        if(row.payload.event==='visit_cancelled'&&row.payload.cancellationEntry===true){
+                            replyMarkup=await prepareCancellationEntry(tx,row.entity_id!,row.entity_version!,row.chat_id);
+                            if(!replyMarkup)invalid='stale_entity';
+                        }
+                    }
                 }
             }
             else if(row.kind==='public_link'){
@@ -95,6 +103,7 @@ export class Outbox {
                 if(!current.length)invalid='stale_entity';
                 if(!invalid&&row.payload.adminScreen){const roles=await tx.query<{role:string}>(`SELECT role FROM roles WHERE user_id=(SELECT id FROM telegram_users WHERE telegram_id=$1)`,[row.chat_id]);if(!roles.some(r=>r.role==='admin'))invalid='stale_entity';}
                 if(!invalid&&row.payload.transferScreen&&!await transferScreenAllowed(tx,row.chat_id,row.payload.transferScreen as TransferScreenScope))invalid='stale_entity';
+                if(!invalid&&row.payload.staffScreen&&!await staffScreenAllowed(tx,row.chat_id,row.payload.staffScreen as StaffScreenScope))invalid='stale_entity';
             }
             else if (!['start', 'delivery_failure'].includes(row.kind))
                 invalid = 'unknown_kind';
