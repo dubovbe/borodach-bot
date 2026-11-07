@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript strict, grammY, @neondatabase/serverless (Client для интерактивных транзакций), SQL-миграции без ORM, Vitest + @cloudflare/vitest-plugin, Wrangler; Node.js LTS с npm, PostgreSQL тестовой среды. Точные совместимые версии проверяются и фиксируются package-lock.json на этапе 1, не копируются из старых примеров.
 
-**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Техническая проверка этапа 1 завершена с ограничениями CPU/учёта расхода в docs/deployment.md. Этап 2 реализован и проверен на Neon и CI Linux/PostgreSQL; пользователь согласовал: отдельная тестовая ветка Neon, разработчик Sol Medium, проверяющий Sol High. Уточнения исполнения — docs/stage-2-foundation.md. Этап 3 реализован и проверен на Neon и CI Linux/PostgreSQL; после проверки восстановления этап4 реализован, проверен на Neon/CI и в отдельном preview (docs/stage-4-notifications.md); этап 5 реализован и проверен (docs/stage-5-identity-access.md), этап 6 реализован и проверен на Neon/CI и двумя аккаунтами в тестовом боте (docs/stage-6-client-booking.md), реализован этап 7, проверки кода и ревью пройдены, готовятся публикация и ручная приёмка (docs/stage-7-client-reminders.md), этапы 8–11 не начаты. Проверки этапа3 — docs/stage-3-booking-rules.md. Роли: [agent-team.md](../../agent-team.md).
+**Spec:** [2026-11-05-borodach-bot-design.md](../specs/2026-11-05-borodach-bot-design.md). План согласован пользователем 2026-11-06. Техническая проверка этапа 1 завершена с ограничениями CPU/учёта расхода в docs/deployment.md. Этап 2 реализован и проверен на Neon и CI Linux/PostgreSQL; пользователь согласовал: отдельная тестовая ветка Neon, разработчик Sol Medium, проверяющий Sol High. Уточнения исполнения — docs/stage-2-foundation.md. Этап 3 реализован и проверен на Neon и CI Linux/PostgreSQL; после проверки восстановления этап4 реализован, проверен на Neon/CI и в отдельном preview (docs/stage-4-notifications.md); этап 5 реализован и проверен (docs/stage-5-identity-access.md), этап 6 реализован и проверен на Neon/CI и двумя аккаунтами в тестовом боте (docs/stage-6-client-booking.md), этап 7 реализован и опубликован, проверки кода/ревью/CI пройдены, начата ручная приёмка (docs/stage-7-client-reminders.md), этапы 8–11 не начаты. Проверки этапа3 — docs/stage-3-booking-rules.md. Роли: [agent-team.md](../../agent-team.md).
 
 ## Global Constraints
 
@@ -182,7 +182,7 @@ expect(planReminders({
 ```
 
 - [x] Реализовать planner с чистыми явными now, уникальными ключами и версиями; не принимать время устройства клиента. В «Мои записи» только собственные визиты, отмена с подтверждением действия до начала, отзыв pending и настройка телефона/интервала. После commit arm; lost ack проверяется повтором updateId.
-- [ ] Проверить тестами: позднее фоновое выполнение завершает pending, но при нажатии после срока операция уже запрещена; отменённый визит не создаёт новых сообщений напоминания. Коммит `feat: add client reminders settings and cancellation`, push, сверка SHA.
+- [x] Проверить тестами: позднее фоновое выполнение завершает pending, но при нажатии после срока операция уже запрещена; отменённый визит не создаёт новых сообщений напоминания. Коммит `feat: add client reminders settings and cancellation`, push, сверка SHA.
 
 ## Этап 8: переносы с согласием
 
