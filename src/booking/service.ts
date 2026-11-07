@@ -1,3 +1,4 @@
+import {saveSchedule} from '../catalog/management';
 import {closeTransferWork,recordTransferEvent} from './transfers';
 import type { Tx } from '../db/client';
 import { DomainError, type Command, type CommandResult, type Id, type Instant, type IdentityCommand } from '../domain/types';
@@ -5,7 +6,7 @@ import { isMeaningfulName } from '../identity/service';
 import { queueStaffDecision } from '../bot/staff';
 import { reviewedQuote } from './quote';
 import { reconcileReminders } from '../notifications/reminders';
-import { approvalDeadline, busyIntervals, prepareAvailability, validateSchedule, workBetween } from '../schedule/service';
+import { approvalDeadline, busyIntervals, prepareAvailability, workBetween } from '../schedule/service';
 function refuse(code: string): never { throw new DomainError(code, 'Действие недоступно. Обновите данные.'); }
 export type Context = {
     tx: Tx;
@@ -94,41 +95,14 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'} | import('../domain/types').TransferCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
+} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'} | import('../domain/types').TransferCommand | import('../domain/types').AdminCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
     const { tx, userId } = c;
     if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking','withdrawBooking'].includes(command.kind)) refuse('forbidden');
+    if (command.kind === 'changeSchedule') return saveSchedule(c,command.barberId,command.expectedVersion,command.schedule);
     const roles = await tx.query<{
         role: string;
     }>('SELECT role FROM roles WHERE user_id=$1', [userId]);
     const admin = roles.some(r => r.role === 'admin');
-    if (command.kind === 'changeSchedule') {
-        if (!admin)
-            refuse('forbidden');
-        validateSchedule(command.schedule);
-        const barber = (await tx.query<{
-            version: number;
-        }>('SELECT version FROM barbers WHERE id=$1', [command.barberId]))[0];
-        if (!barber)
-            refuse('not_found');
-        if (barber.version !== command.expectedVersion)
-            refuse('stale_version');
-        const busy = await busyIntervals(command.barberId, tx);
-        for (const b of busy) {
-            const work = workBetween(command.schedule, b.start, b.end);
-            if (!work.some(w => Date.parse(w.start) <= Date.parse(b.start) && Date.parse(w.end) >= Date.parse(b.end)))
-                refuse('schedule_conflict');
-        }
-        await tx.query('DELETE FROM weekly_hours WHERE barber_id=$1', [command.barberId]);
-        await tx.query('DELETE FROM date_exceptions WHERE barber_id=$1', [command.barberId]);
-        for (const [weekday, intervals] of Object.entries(command.schedule.weekly))
-            for (const i of intervals)
-                await tx.query('INSERT INTO weekly_hours(barber_id,weekday,start_minute,end_minute) VALUES($1,$2,$3,$4)', [command.barberId, Number(weekday), i.startMinute, i.endMinute]);
-        for (const [date, intervals] of Object.entries(command.schedule.exceptions))
-            await tx.query('INSERT INTO date_exceptions(barber_id,local_date,intervals) VALUES($1,$2,$3::jsonb)', [command.barberId, date, JSON.stringify(intervals)]);
-        await tx.query('UPDATE barbers SET version=version+1 WHERE id=$1', [command.barberId]);
-        await tx.query('INSERT INTO audit_events(update_id,actor_id,kind,entity_id,created_at) VALUES($1,$2,$3,$4,$5)', [c.updateId, userId, 'schedule_changed', command.barberId, tx.now]);
-        return { entityId: command.barberId, status: 'schedule_changed', nextWake: await nextDue(tx) };
-    }
     if (command.kind === 'requestBooking') {
         if (!roles.some(r => r.role === 'client')) refuse('forbidden');
         const client = (await tx.query<{

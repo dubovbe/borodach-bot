@@ -1,0 +1,3 @@
+import {expect,it} from 'vitest';
+import {publicBookingToken,invitationToken,hashToken} from '../../src/identity/service';
+it('public booking issuer is stable per barber and separated from staff invitation tokens',async()=>{const secret='synthetic-Stage9-secret-0123456789-ABCDEFG',a='00000000-0000-4000-8000-000000000001',b='00000000-0000-4000-8000-000000000002';const token=await publicBookingToken(a,secret);expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);expect(await publicBookingToken(a,secret)).toBe(token);expect(await publicBookingToken(b,secret)).not.toBe(token);expect(await invitationToken(a,secret)).not.toBe(token);expect(await hashToken(token)).toHaveLength(64);});

@@ -1,3 +1,5 @@
+import type {AdminCommand} from './admin';
+export type {AdminCommand} from './admin';
 export type Id = string;
 export type Instant = string;
 export type Interval = { start: Instant; end: Instant };
@@ -14,13 +16,13 @@ export type TransferCommand = {kind:'requestTransfer';visitId:Id;expectedVersion
  | {kind:'proposeTransfer';visitId:Id;expectedVersion:number;newStart:Instant;reason?:string}
  | {kind:'decideTransfer';transferId:Id;expectedVersion:number;accept:boolean}
  | {kind:'recordPhoneAgreement';transferId:Id;expectedVersion:number};
-export type Command = TransferCommand | IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
+export type Command = AdminCommand | TransferCommand | IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
  | { kind:'requestBooking'; barberId:Id; serviceIds:Id[]; start:Instant }
  | { kind:'confirmBooking'|'declineBooking'|'cancelBooking'; visitId:Id; expectedVersion:number; reason?:string;purpose?:'client' }
  | {kind:'setReminderHours';hours:number}
  | {kind:'withdrawBooking';visitId:Id;expectedVersion:number;purpose?:'client'}
  | { kind:'changeSchedule'; barberId:Id; expectedVersion:number; schedule:WorkSchedule };
-export type CommandResult = { entityId?: Id; status: string; nextWake: Instant | null };
+export type CommandResult = { entityId?: Id; status: string; nextWake: Instant | null; conflicts?: Conflict[] };
 export type OfferItem = { serviceId: Id; name: string; priceKopecks: number; durationMinutes: number };
 export type Conflict = Interval & { visitId: Id; kind: 'visit' | 'transfer' };
 export type WorkSchedule = { timezone: 'Europe/Moscow'; weekly: Record<number, { startMinute: number; endMinute: number }[]>;
