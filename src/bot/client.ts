@@ -9,7 +9,7 @@ import { calendarMonth, createScreenRenderer, type ClientView, type ScreenButton
 import { queueStaffDecision, staffVisit } from './staff';
 import { reconcileReminders, setReminderHours } from '../notifications/reminders';
 
-type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact'|'reason';staffVisible?:boolean;transfer?:{id:string;version:number;side:'client'|'staff';start?:string;reason?:string};quote?:string;submitted?:boolean;blocked?:boolean;returnView?:ClientView;contactContext?:'settings';page?:number;cancelPrompt?:{id:string;version:number;kind:'cancelBooking'|'withdrawBooking'}};
+type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact'|'reason';staffVisible?:boolean;adminVisible?:boolean;transfer?:{id:string;version:number;side:'client'|'staff';start?:string;reason?:string};quote?:string;submitted?:boolean;blocked?:boolean;returnView?:ClientView;contactContext?:'settings';page?:number;cancelPrompt?:{id:string;version:number;kind:'cancelBooking'|'withdrawBooking'}};
 type DraftRow={id:string;user_id:string;barber_id:string|null;version:number;expires_at:Date|string;state:State};
 const stamp=(v:Date|string)=>new Date(v).toISOString();
 export function createClientController(context:Context,owner:Actor){
@@ -40,7 +40,7 @@ export function createClientController(context:Context,owner:Actor){
   };
   const button=(text:string,action:Record<string,unknown>):ScreenButton=>({text:text.slice(0,100),action});
   const back=()=>button('Назад',{kind:'back'});
-  const managementButtons=()=>[button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Записи для переноса',{kind:'staffTransfers'})]:[])];
+  const managementButtons=()=>[...(row?.state.adminVisible?[button('Управление',{kind:'admin'})]:[]),button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Записи для переноса',{kind:'staffTransfers'})]:[])];
   const submittedContent=()=>({text:'Заявка отправлена и ожидает решения мастера.',rows:[[button('Новая запись',{kind:'newBooking'})]]});
   const renderer=createScreenRenderer({
     callbacks:async(d,rows)=>{
@@ -176,7 +176,7 @@ export function createClientController(context:Context,owner:Actor){
     if(payload){if(payload.startsWith('b_')&&/^[A-Za-z0-9_-]{20,100}$/.test(payload.slice(2))){barberId=(await tx.query<{id:string}>('SELECT id FROM barbers WHERE public_token_hash=$1 AND archived_at IS NULL',[await hashToken(payload.slice(2))]))[0]?.id??null;blocked=!barberId;}else blocked=true;}
     await load();if(row)await cancelScreens();
     const roles=await tx.query<{role:string}>('SELECT role FROM roles WHERE user_id=$1',[userId]);
-    const state:State={staffVisible:roles.some(r=>r.role==='admin'||r.role==='barber'),view:barberId?'services':'masters',lockedBarber:!!barberId,serviceIds:[],selectedStart:null,month:localDate(tx.now).slice(0,7),blocked};
+    const state:State={adminVisible:roles.some(r=>r.role==='admin'),staffVisible:roles.some(r=>r.role==='admin'||r.role==='barber'),view:barberId?'services':'masters',lockedBarber:!!barberId,serviceIds:[],selectedStart:null,month:localDate(tx.now).slice(0,7),blocked};
     row=(await tx.query<DraftRow>(`INSERT INTO drafts(user_id,barber_id,state,expires_at) VALUES($1,$2,$3::jsonb,$4::timestamptz+interval '30 minutes') ON CONFLICT(user_id) DO UPDATE SET barber_id=EXCLUDED.barber_id,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,version=drafts.version+1 RETURNING *`,[userId,barberId,JSON.stringify(state),tx.now]))[0];
     return show(blocked?'invalid_link':'started');
   }

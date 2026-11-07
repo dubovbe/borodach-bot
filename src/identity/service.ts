@@ -149,3 +149,16 @@ export async function renderInvitation(tx: Tx, invitationId: unknown, chatId: st
     return `Приглашение барбера (действует 24 часа): https://t.me/${options.botUsername}?start=i_${token}`;
   } catch (error) { if (error instanceof DomainError) return null; throw error; }
 }
+export async function publicBookingToken(id:Id,secret?:string):Promise<string>{
+ if(!secret||secret.length<32||!secret.trim()||new Set(secret).size<8)deny('invitation_unconfigured');
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(`borodach:public-booking:v1:${id}`)));
+ return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
+}
+export async function renderPublicLink(tx:Tx,barberId:unknown,chatId:string,options:IdentityOptions):Promise<string|null>{
+ if(typeof barberId!=='string'||!options.botUsername||!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(options.botUsername))return null;
+ const row=(await tx.query<{public_token_hash:string}>(`SELECT b.public_token_hash FROM barbers b WHERE b.id::text=$1 AND b.archived_at IS NULL AND EXISTS(SELECT 1 FROM telegram_users u JOIN roles r ON r.user_id=u.id WHERE u.telegram_id=$2 AND r.role='admin')`,[barberId,chatId]))[0];
+ if(!row)return null;
+ try{const token=await publicBookingToken(barberId,options.invitationSecret);if(await hashToken(token)!==row.public_token_hash)return null;return `Персональная ссылка: https://t.me/${options.botUsername}?start=b_${token}`;}
+ catch(error){if(error instanceof DomainError)return null;throw error;}
+}

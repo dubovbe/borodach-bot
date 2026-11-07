@@ -19,13 +19,13 @@ export function approvalDeadline(now: Instant, work: Interval[]): Instant | null
     return next ? iso(Math.max(n, Date.parse(next.start)) + 60 * minute) : null;
 }
 export function validateSchedule(schedule: WorkSchedule): void {
-    if (schedule.timezone !== 'Europe/Moscow')
+    if (!schedule||typeof schedule!=='object'||!schedule.weekly||typeof schedule.weekly!=='object'||Array.isArray(schedule.weekly)||!schedule.exceptions||typeof schedule.exceptions!=='object'||Array.isArray(schedule.exceptions)||schedule.timezone !== 'Europe/Moscow')
         throw new DomainError('invalid_schedule', 'Некорректный часовой пояс.');
     const validate = (intervals: {
         startMinute: number;
         endMinute: number;
-    }[]) => { let end = -1; for (const i of intervals) {
-        if (!Number.isInteger(i.startMinute) || !Number.isInteger(i.endMinute) || i.startMinute < 0 || i.endMinute > 1440 || i.startMinute >= i.endMinute || i.startMinute < end)
+    }[]) => { if(!Array.isArray(intervals))throw new DomainError('invalid_schedule','Некорректные интервалы.');let end = -1; for (const i of intervals) {
+        if (!i||typeof i!=='object'||!Number.isInteger(i.startMinute) || !Number.isInteger(i.endMinute) || i.startMinute < 0 || i.endMinute > 1440 || i.startMinute >= i.endMinute || i.startMinute < end)
             throw new DomainError('invalid_schedule', 'Некорректные интервалы.');
         end = i.endMinute;
     } };
@@ -35,7 +35,7 @@ export function validateSchedule(schedule: WorkSchedule): void {
         validate(intervals);
     }
     for (const [date, intervals] of Object.entries(schedule.exceptions)) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date)
+        if (!/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date)
             throw new DomainError('invalid_schedule', 'Некорректная дата.');
         validate(intervals);
     }
@@ -149,4 +149,18 @@ export async function listSlots(input: SlotInput, db: Database): Promise<Interva
             throw error;
         }
     });
+}
+import type {Conflict} from '../domain/types';
+// Called under the repository shop lock. Historical ended intervals are never blockers.
+export async function liveScheduleIntervals(barberId:Id,tx:Tx):Promise<Conflict[]>{
+ const rows=await tx.query<{visit_id:string;kind:'visit'|'transfer';start_at:Date|string;end_at:Date|string}>(`SELECT visit_id,kind,start_at,end_at FROM (
+ SELECT id AS visit_id,'visit'::text AS kind,start_at,end_at FROM visits WHERE barber_id=$1 AND end_at>$2 AND (status='confirmed' OR (status='pending' AND deadline>$2))
+ UNION SELECT v.id,'transfer',t.new_start_at,t.new_end_at FROM transfers t JOIN visits v ON v.id=t.visit_id WHERE v.barber_id=$1 AND t.status='pending' AND t.deadline>$2 AND t.new_end_at>$2
+ UNION SELECT visit_id,kind,start_at,end_at FROM holds WHERE barber_id=$1 AND end_at>$2 AND (expires_at IS NULL OR expires_at>$2)
+ ) busy ORDER BY start_at,end_at,kind,visit_id`,[barberId,tx.now]);
+ return rows.map(r=>({visitId:r.visit_id,kind:r.kind,start:new Date(r.start_at).toISOString(),end:new Date(r.end_at).toISOString()}));
+}
+export async function validateScheduleChange(barberId:Id,proposed:WorkSchedule,tx:Tx):Promise<Conflict[]>{
+ validateSchedule(proposed);const busy=await liveScheduleIntervals(barberId,tx);
+ return busy.filter(b=>!workBetween(proposed,b.start,b.end).some(w=>Date.parse(w.start)<=Date.parse(b.start)&&Date.parse(w.end)>=Date.parse(b.end)));
 }
