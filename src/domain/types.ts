@@ -10,7 +10,11 @@ export type IdentityCommand = { kind:'updateContact'; contact:{userId?:Id;phone:
  | {kind:'revokeInvite';invitationId:Id}
  | {kind:'redeemInvite';token:string};
 export type ClientCommand = {kind:'clientAction';callbackId:Id} | {kind:'saveDraftInput';text:string};
-export type Command = IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
+export type TransferCommand = {kind:'requestTransfer';visitId:Id;expectedVersion:number;newStart:Instant;reason?:string}
+ | {kind:'proposeTransfer';visitId:Id;expectedVersion:number;newStart:Instant;reason?:string}
+ | {kind:'decideTransfer';transferId:Id;expectedVersion:number;accept:boolean}
+ | {kind:'recordPhoneAgreement';transferId:Id;expectedVersion:number};
+export type Command = TransferCommand | IdentityCommand | ClientCommand | { kind: 'start'; payload: string | null }
  | { kind:'requestBooking'; barberId:Id; serviceIds:Id[]; start:Instant }
  | { kind:'confirmBooking'|'declineBooking'|'cancelBooking'; visitId:Id; expectedVersion:number; reason?:string;purpose?:'client' }
  | {kind:'setReminderHours';hours:number}

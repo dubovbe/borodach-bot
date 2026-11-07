@@ -16,7 +16,7 @@ export function safeReplyMarkup(value: unknown): typeof CONTACT_MARKUP | typeof 
   throw new Error('invalid_payload');
 }
 
-export type ClientView='masters'|'services'|'calendar'|'times'|'summary'|'bookings'|'settings';
+export type ClientView='masters'|'services'|'calendar'|'times'|'summary'|'bookings'|'settings'|'staffTransfers'|'transferCalendar'|'transferTimes'|'transferSummary';
 export type Screen={text:string;keyboard:import('grammy/types').InlineKeyboardMarkup|import('grammy/types').ReplyKeyboardMarkup};
 export function calendarMonth(month:string,available:Set<string>){
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('invalid_month');

@@ -17,3 +17,13 @@ it('sent history across version and non-null sent_at terminal suppress both clas
  await reconcileReminders(c,{mode:'preference'});expect(c.calls).toHaveLength(1);
 });
 it.each([0,6,1.1,NaN])('invalid preference %s is rejected before SQL',async hours=>{const c=fixture([]);await expect(setReminderHours(c,hours)).rejects.toMatchObject({code:'invalid_reminder_hours'});expect(c.calls).toEqual([]);});
+it('a genuine return to the same start schedules fresh future classes in a new generation',async()=>{
+ const c=fixture([row('day',{entity_version:1,logical_key:'old:day',status:'sent'}),row('near',{entity_version:1,logical_key:'old:near',status:'sent'})]);
+ const query=c.tx.query;
+ c.tx.query=async<T>(sql:string,v:unknown[])=>{const result=await query<T>(sql,v);return sql.startsWith('SELECT v.id')?result.map(x=>({...x,schedule_generation:3})):result;};
+ await reconcileReminders(c);
+ const write=c.calls.find(x=>x.sql.startsWith('WITH cancelled'));
+ expect(write).toBeDefined();
+ const desired=JSON.parse(write!.v[1] as string);expect(desired).toHaveLength(2);
+ expect(desired.every((p:any)=>p.payload.scheduleGeneration===3)).toBe(true);
+});

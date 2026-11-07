@@ -2,6 +2,7 @@ import { DomainError, type Actor, type Command, type CommandResult, type Instant
 import type { Database, Tx } from './client';
 import { cleanupExpired, executeBooking, nextDue, expireJob } from '../booking/service';
 import { acceptContact, issueBarberInvite, redeemInvite, revokeInvite, type IdentityOptions } from '../identity/service';
+import {executeTransfer} from '../booking/transfers';
 import { REMOVE_KEYBOARD } from '../bot/screens';
 import { createClientController } from '../bot/client';
 import { reconcileReminders,setReminderHours } from '../notifications/reminders';
@@ -56,6 +57,8 @@ export class Repository {
                 } else if(command.kind==='setReminderHours'){
                     await setReminderHours({tx,userId,updateId},command.hours);
                     result={status:'reminder_updated',nextWake:await nextDue(tx)};
+                } else if (command.kind==='requestTransfer'||command.kind==='proposeTransfer'||command.kind==='decideTransfer'||command.kind==='recordPhoneAgreement'){
+                    result=await executeTransfer({tx,userId,updateId},command);
                 } else if (command.kind === 'clientAction') {
                     result = await createClientController({tx,userId,updateId},actor).handleClientAction(actor,command.callbackId,tx);
                 } else if (command.kind === 'saveDraftInput') {

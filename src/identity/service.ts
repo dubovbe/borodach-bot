@@ -1,3 +1,4 @@
+import {cancelLinkedTransfers} from '../booking/transfers';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
 import { DomainError, type Actor, type Id } from '../domain/types';
 import type { Tx } from '../db/client';
@@ -45,11 +46,12 @@ export async function acceptContact(actor: Actor, contact: { userId?: Id; phone:
       WHERE v.client_id=c.id AND c.user_id IS NULL AND c.phone=$2 AND v.status='confirmed' AND v.start_at>$3 RETURNING v.id`, [client.id, phone, tx.now]);
     if (moved.length) {
       const ids = moved.map(v => v.id);
+      await cancelLinkedTransfers(tx,ids);
       // Outstanding jobs keep their due dates but follow the new ownership version.
       await tx.query(`UPDATE jobs j SET entity_version=v.version,version=j.version+1 FROM visits v
         WHERE j.visit_id=v.id AND v.id=ANY($1::uuid[]) AND j.kind<>'expire_transfer' AND j.status IN ('pending','leased')`, [ids]);
       await tx.query(`UPDATE outbox SET status='cancelled',claim_token=NULL,lease_until=NULL,version=version+1
-        WHERE status IN ('pending','leased') AND (entity_id=ANY($1::uuid[]) OR payload->>'visitId'=ANY($2::text[]))`, [ids, ids]);
+        WHERE status IN ('pending','leased') AND entity_id=ANY($1::uuid[])`, [ids]);
     }
   }
   return client.id;

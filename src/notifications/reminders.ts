@@ -2,13 +2,14 @@ import type { Tx } from '../db/client';
 import { DomainError, type Id, type Instant } from '../domain/types';
 import { remainingReminders,validateReminderHours,type ReminderHours } from './planner';
 type Context={tx:Tx;userId:Id|null;updateId:Id|null};
-type Existing={id:string;logical_key:string;status:string;sent_at:string|null;entity_version:number;payload:{reminderKind?:string;scheduledStart?:string;scheduledDueAt?:string};due_at:string};
-type Visit={id:string;version:number;start_at:string|Date;chat_id:string;reminder_hours:ReminderHours;confirmed_at:string|Date|null;reminders:Existing[]};
+type Existing={id:string;logical_key:string;status:string;sent_at:string|null;entity_version:number;payload:{reminderKind?:string;scheduledStart?:string;scheduledDueAt?:string;scheduleGeneration?:number};due_at:string};
+type Visit={id:string;version:number;schedule_generation?:number;start_at:string|Date;chat_id:string;reminder_hours:ReminderHours;confirmed_at:string|Date|null;reminders:Existing[]};
 const stamp=(v:Date|string)=>new Date(v).toISOString();
 // Both callers and delivery run under the shop lock. No send or scheduler call belongs here.
 export async function reconcileReminders(c:Context,options:{visitId?:Id;confirmedAt?:Instant;mode?:'ensure'|'preference'}={}):Promise<void>{
-  const visits=await c.tx.query<Visit>(`SELECT v.id,v.version,v.start_at,u.telegram_id::text AS chat_id,c.reminder_hours,
-    (SELECT max(a.created_at) FROM audit_events a WHERE a.entity_id=v.id AND a.kind='visit_confirmed') AS confirmed_at,
+  const visits=await c.tx.query<Visit>(`SELECT v.id,v.version,v.schedule_generation,v.start_at,u.telegram_id::text AS chat_id,c.reminder_hours,
+    CASE WHEN v.schedule_generation=1 THEN (SELECT max(a.created_at) FROM audit_events a WHERE a.entity_id=v.id AND a.kind='visit_confirmed')
+      ELSE (SELECT max(t.agreed_at) FROM transfers t WHERE t.visit_id=v.id AND t.status='accepted' AND (t.context->>'scheduleGeneration')::integer+1=v.schedule_generation) END AS confirmed_at,
     COALESCE((SELECT jsonb_agg(jsonb_build_object('id',o.id,'logical_key',o.logical_key,'status',o.status,
       'sent_at',o.sent_at,'entity_version',o.entity_version,'payload',o.payload,'due_at',o.due_at))
       FROM outbox o WHERE o.entity_id=v.id AND o.kind='reminder'),'[]'::jsonb) AS reminders
@@ -20,7 +21,7 @@ export async function reconcileReminders(c:Context,options:{visitId?:Id;confirme
     const start=stamp(v.start_at),history=v.reminders;
     const plans=remainingReminders({visitId:v.id,version:v.version,start,now:c.tx.now,hours:v.reminder_hours,
       ...(options.confirmedAt?{confirmedAt:options.confirmedAt}:v.confirmed_at?{confirmedAt:stamp(v.confirmed_at)}:{})});
-    const terminal=new Set(history.filter(r=>(r.status==='sent'||r.sent_at!==null)&&r.payload.scheduledStart&&Date.parse(r.payload.scheduledStart)===Date.parse(start)).map(r=>r.payload.reminderKind));
+    const terminal=new Set(history.filter(r=>(r.status==='sent'||r.sent_at!==null)&&(r.payload.scheduleGeneration??1)===(v.schedule_generation??1)).map(r=>r.payload.reminderKind));
     const candidates=plans.filter(p=>!terminal.has(p.kind));
     for(const r of history){
       if(r.status==='sent'||r.sent_at!==null||!['pending','leased'].includes(r.status))continue;
@@ -33,7 +34,7 @@ export async function reconcileReminders(c:Context,options:{visitId?:Id;confirme
         if(options.mode!=='preference')continue;
         if(['pending','leased'].includes(current.status)&&Date.parse(current.payload.scheduledDueAt??current.due_at)===Date.parse(p.dueAt))continue;
       }
-      desired.push({key:p.key,visitId:v.id,version:v.version,chatId:v.chat_id,dueAt:p.dueAt,payload:{text:`Напоминание о записи: ${new Date(start).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК).`,reminderKind:p.kind,scheduledStart:start,scheduledDueAt:p.dueAt}});
+      desired.push({key:p.key,visitId:v.id,version:v.version,chatId:v.chat_id,dueAt:p.dueAt,payload:{text:`Напоминание о записи: ${new Date(start).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК).`,reminderKind:p.kind,scheduledStart:start,scheduledDueAt:p.dueAt,scheduleGeneration:v.schedule_generation??1}});
     }
   }
   // A no-op never steals leases, resets retries, or writes rows.

@@ -44,7 +44,10 @@ it('sent class is terminal across preference toggles and ownership-only version 
 it('management is available before profile and after submit; cancel requires affirmative own current callback and releases work',async()=>{
   const v=await visit();await sql.query("UPDATE drafts SET state=state||'{\"submitted\":true}'::jsonb");
   await sql.query("INSERT INTO holds(visit_id,barber_id,kind,start_at,end_at) VALUES($1,$2,'visit',$3,$4)",[v.id,barber,v.start_at,v.end_at]);
-  const t=(await sql.query("INSERT INTO transfers(visit_id,initiator,status,new_start_at,new_end_at,deadline) VALUES($1,'staff','pending',$2::timestamptz+interval '1 day',$2::timestamptz+interval '1 day 45 minutes',$3) RETURNING id",[v.id,start,'2026-11-06T05:00:00Z'])).rows[0].id;
+  const t=(await sql.query(`INSERT INTO transfers(visit_id,initiator,status,new_start_at,new_end_at,deadline,initiator_user_id,context)
+    SELECT v.id,'staff','pending',$2::timestamptz+interval '1 day',$2::timestamptz+interval '1 day 45 minutes',$3,c.user_id,
+      jsonb_build_object('visitVersion',v.version,'clientId',v.client_id,'clientUserId',c.user_id,'barberId',v.barber_id,'oldStart',v.start_at,'oldEnd',v.end_at,'scheduleGeneration',v.schedule_generation)
+    FROM visits v JOIN clients c ON c.id=v.client_id WHERE v.id=$1 RETURNING id`,[v.id,start,'2026-11-06T05:00:00Z'])).rows[0].id;
   await sql.query("INSERT INTO holds(visit_id,transfer_id,barber_id,kind,start_at,end_at,expires_at) VALUES($1,$2,$3,'transfer',$4::timestamptz+interval '1 day',$4::timestamptz+interval '1 day 45 minutes',$5)",[v.id,t,barber,start,'2026-11-06T05:00:00Z']);
   await sql.query("INSERT INTO jobs(logical_key,kind,visit_id,entity_version,due_at) VALUES('cleanup-proof','expire_visit',$1,1,$2)",[v.id,'2026-11-06T05:00:00Z']);
   await execute({kind:'setReminderHours',hours:2});await sql.query("UPDATE outbox SET status='leased',claim_token=gen_random_uuid(),lease_until=$1 WHERE kind='reminder' AND payload->>'reminderKind'='near'",['2026-11-06T04:01:00Z']);
