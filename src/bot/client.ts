@@ -1,3 +1,4 @@
+import {handleTransferCallback,prepareTransferAvailability,executeTransfer,validTransferReason,type TransferScreenScope} from '../booking/transfers';
 import type { Tx } from '../db/client';
 import { DomainError, type Actor, type CommandResult, type Draft, type Id } from '../domain/types';
 import { executeBooking, type Context } from '../booking/service';
@@ -8,7 +9,7 @@ import { calendarMonth, createScreenRenderer, type ClientView, type ScreenButton
 import { queueStaffDecision, staffVisit } from './staff';
 import { reconcileReminders, setReminderHours } from '../notifications/reminders';
 
-type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact';quote?:string;submitted?:boolean;blocked?:boolean;returnView?:ClientView;contactContext?:'settings';page?:number;cancelPrompt?:{id:string;version:number;kind:'cancelBooking'|'withdrawBooking'}};
+type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact'|'reason';staffVisible?:boolean;transfer?:{id:string;version:number;side:'client'|'staff';start?:string;reason?:string};quote?:string;submitted?:boolean;blocked?:boolean;returnView?:ClientView;contactContext?:'settings';page?:number;cancelPrompt?:{id:string;version:number;kind:'cancelBooking'|'withdrawBooking'}};
 type DraftRow={id:string;user_id:string;barber_id:string|null;version:number;expires_at:Date|string;state:State};
 const stamp=(v:Date|string)=>new Date(v).toISOString();
 export function createClientController(context:Context,owner:Actor){
@@ -17,9 +18,10 @@ export function createClientController(context:Context,owner:Actor){
   let row:DraftRow|undefined;
   let prepared:Awaited<ReturnType<typeof prepareAvailability>>|undefined;
   let summary:Awaited<ReturnType<typeof reviewedQuote>>|undefined;
+  let transferScreen:TransferScreenScope|undefined;
   const draft=():Draft=>({id:row!.id,telegramId:owner.telegramId,version:row!.version,barberId:row!.barber_id,lockedBarber:row!.state.lockedBarber,serviceIds:row!.state.serviceIds,selectedStart:row!.state.selectedStart,expiresAt:stamp(row!.expires_at)});
   const load=async()=>{row=(await tx.query<DraftRow>('SELECT * FROM drafts WHERE user_id=$1',[userId]))[0];return row;};
-  const management=()=>row?.state.view==='bookings'||row?.state.view==='settings';
+  const management=()=>row?.state.view==='bookings'||row?.state.view==='settings'||row?.state.view==='staffTransfers'||row?.state.view.startsWith('transfer');
   const active=()=>row&&Date.parse(stamp(row.expires_at))>Date.parse(tx.now)&&((!row.state.submitted&&!row.state.blocked)||management());
   const data=async()=>{
     if(!row?.barber_id)throw new DomainError('offer_unavailable','Выберите мастера.');
@@ -38,7 +40,7 @@ export function createClientController(context:Context,owner:Actor){
   };
   const button=(text:string,action:Record<string,unknown>):ScreenButton=>({text:text.slice(0,100),action});
   const back=()=>button('Назад',{kind:'back'});
-  const managementButtons=()=>[button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'})];
+  const managementButtons=()=>[button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Записи для переноса',{kind:'staffTransfers'})]:[])];
   const submittedContent=()=>({text:'Заявка отправлена и ожидает решения мастера.',rows:[[button('Новая запись',{kind:'newBooking'})]]});
   const renderer=createScreenRenderer({
     callbacks:async(d,rows)=>{
@@ -52,6 +54,32 @@ export function createClientController(context:Context,owner:Actor){
       const s=row!.state;
       if(s.blocked&&!management())return {text:'Ссылка мастера недоступна. Откройте новую ссылку или общий вход /start.',rows:[[button('Обновить',{kind:'refresh'})]]};
       if(s.submitted&&!management())return submittedContent();
+      if(s.phase==='reason')return {text:'Введите причину переноса одной строкой (до 500 символов).',rows:[[button('Назад',{kind:'transferBack'})]]};
+      if(view==='staffTransfers'){
+        const visits=await tx.query<{id:string;version:number;start_at:Date|string;barber:string}>(`SELECT v.id,v.version,v.start_at,b.name AS barber FROM visits v JOIN barbers b ON b.id=v.barber_id JOIN clients cl ON cl.id=v.client_id WHERE v.status='confirmed' AND v.start_at>$2 AND b.archived_at IS NULL AND cl.user_id IS DISTINCT FROM $1 AND (EXISTS(SELECT 1 FROM roles WHERE user_id=$1 AND role='admin') OR (b.user_id=$1 AND EXISTS(SELECT 1 FROM roles WHERE user_id=$1 AND role='barber'))) ORDER BY v.start_at,v.id LIMIT 6 OFFSET $3`,[userId,tx.now,(s.page??0)*5]);
+        transferScreen={userId,staffList:true,visits:visits.slice(0,5).map(v=>({id:v.id,version:v.version,side:'staff'}))};
+        return {text:visits.length?'Выберите запись для предложения переноса. Собственные записи доступны в «Мои записи».':'Подходящих записей нет. Собственные записи доступны в «Мои записи».',rows:[...visits.slice(0,5).map(v=>[button(`${v.barber} · ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})}`,{kind:'transferVisit',id:v.id,version:v.version,side:'staff'})]),...(s.page?[[button('‹',{kind:'staffTransfers',page:s.page-1})]]:[]),...(visits.length>5?[[button('›',{kind:'staffTransfers',page:(s.page??0)+1})]]:[])]};
+      }
+      if(view.startsWith('transfer')){
+        const t=s.transfer;if(!t)throw new DomainError('invalid_state','Выберите запись.');
+        transferScreen={userId,visits:[{id:t.id,version:t.version,side:t.side}]};
+        const d=await prepareTransferAvailability(context,t.id,t.version,t.side);
+        if(view==='transferSummary'){
+          const slot=t.start&&d.slots(t.start,t.start)[0];if(!slot)throw new DomainError('slot_unavailable','Выберите другое время.');
+          const clip=(x:string)=>x.length>1500?x.slice(0,1499).replace(/[\uD800-\uDBFF]$/,'')+'…':x;
+          return {text:`Проверьте перенос.\nБыло: ${new Date(d.visit.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)\nНовое время: ${new Date(t.start!).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)\n${clip(d.visit.items.map(i=>i.name).join(', '))}\nСтоимость: ${d.visit.items.reduce((n,i)=>n+i.priceKopecks,0)/100} ₽\nДлительность: ${d.duration} мин.\nСогласие до: ${new Date(slot.deadline).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)${t.reason?'\nПричина: '+t.reason:''}`,rows:[[button(t.side==='client'?'Отправить запрос переноса':'Отправить предложение',{kind:'transferSubmit'})],[button('Назад',{kind:'transferBack'})]]};
+        }
+        if(view==='transferCalendar'){
+          const from=`${s.month}-01T00:00:00+03:00`,to=new Date(Date.parse(from)+32*86400000).toISOString(),calendar=calendarMonth(s.month,new Set(d.slots(from,to).map(x=>localDate(x.start))));
+          const rows:ScreenButton[][]=[];for(let i=0;i<calendar.days.length;i+=7)rows.push(calendar.days.slice(i,i+7).map(day=>button(day.enabled?day.label:`·${day.label}`,day.enabled?{kind:'transferDay',day:day.date}:{kind:'noop'})));
+          const nav:ScreenButton[]=[];if(calendar.previous>=localDate(tx.now).slice(0,7))nav.push(button('‹',{kind:'transferMonth',month:calendar.previous}));
+          const last=localDate(new Date(Date.parse(tx.now)+d.horizon*86400000).toISOString()).slice(0,7);if(t.side==='staff'||calendar.next<=last)nav.push(button('›',{kind:'transferMonth',month:calendar.next}));
+          return {text:`Выберите день переноса: ${s.month} (МСК).`,rows:[...rows,...(nav.length?[nav]:[]),[button('Назад',{kind:'transferExit'})]]};
+        }
+        const slots=d.slots(`${s.day}T00:00:00+03:00`,`${s.day}T23:59:59+03:00`),buttons=slots.map(x=>button(new Date(x.start).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}),{kind:'transferTime',start:x.start}));
+        const rows:ScreenButton[][]=[];for(let i=0;i<buttons.length;i+=4)rows.push(buttons.slice(i,i+4));
+        return {text:slots.length?'Выберите новое время (МСК).':'Нет свободного времени. Выберите другой день.',rows:[...rows,[button('Назад',{kind:'transferBack'})]]};
+      }
       if(s.phase==='name')return {text:'Введите ваше имя (от 1 до 80 символов).',rows:[[back()]]};
       if(s.phase==='contact')return {text:CONTACT_TEXT,contact:true,rows:[]};
       if(view==='settings'){
@@ -69,7 +97,7 @@ export function createClientController(context:Context,owner:Actor){
           if(v)return {text:`${prompt.kind==='withdrawBooking'?'Отозвать заявку':'Отменить запись'}?\n${v.barber}, ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)`,rows:[[button('Да, отменить',{kind:'confirmOwn',id:v.id,version:v.version,operation:prompt.kind})],[button('Нет',{kind:'bookings',page:s.page??0})]]};
           s.cancelPrompt=undefined;
         }
-        const shown=visits.slice(0,5),rows=shown.map(v=>[button(`${v.status==='pending'?'Отозвать':'Отменить'} · ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`,{kind:'promptOwn',id:v.id,version:v.version,operation:v.status==='pending'?'withdrawBooking':'cancelBooking'})]);
+        const shown=visits.slice(0,5),rows=shown.map(v=>[button(`${v.status==='pending'?'Отозвать':'Отменить'} · ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`,{kind:'promptOwn',id:v.id,version:v.version,operation:v.status==='pending'?'withdrawBooking':'cancelBooking'}),...(v.status==='confirmed'?[button('Перенести',{kind:'transferVisit',id:v.id,version:v.version,side:'client'})]:[])]);
         const pages:ScreenButton[]=[];if(s.page)pages.push(button('‹',{kind:'bookings',page:s.page-1}));if(visits.length>5)pages.push(button('›',{kind:'bookings',page:(s.page??0)+1}));
         // Keep every visit's controls usable even when its immutable service snapshot is large.
         const preview=(text:string,limit:number)=>text.length<=limit?text:text.slice(0,limit-1).replace(/[\uD800-\uDBFF]$/,'')+'…';
@@ -108,9 +136,10 @@ export function createClientController(context:Context,owner:Actor){
   const show=async(status='screen',notice?:string):Promise<CommandResult>=>{
     // A stale-button refresh must review the newly displayed terms and invalidate earlier Submit IDs.
     if(showsSummary()&&!summary)await persist();
+    transferScreen=undefined;
     const screen=await renderer(draft(),row!.state.view);
     await cancelScreens();
-    await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`screen:${updateId}:${crypto.randomUUID()}`,updateId,JSON.stringify({text:(notice?`${notice}\n`:'')+screen.text,reply_markup:screen.keyboard}),tx.now,row!.id,row!.version,userId]);
+    await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`screen:${updateId}:${crypto.randomUUID()}`,updateId,JSON.stringify({text:(notice?`${notice}\n`:'')+screen.text,reply_markup:screen.keyboard,...(transferScreen?{transferScreen}:{})}),tx.now,row!.id,row!.version,userId]);
     return {entityId:row!.id,status,nextWake:tx.now};
   };
   const finalizeSubmitted=async()=>{
@@ -146,13 +175,15 @@ export function createClientController(context:Context,owner:Actor){
     let barberId:string|null=null,blocked=false;
     if(payload){if(payload.startsWith('b_')&&/^[A-Za-z0-9_-]{20,100}$/.test(payload.slice(2))){barberId=(await tx.query<{id:string}>('SELECT id FROM barbers WHERE public_token_hash=$1 AND archived_at IS NULL',[await hashToken(payload.slice(2))]))[0]?.id??null;blocked=!barberId;}else blocked=true;}
     await load();if(row)await cancelScreens();
-    const state:State={view:barberId?'services':'masters',lockedBarber:!!barberId,serviceIds:[],selectedStart:null,month:localDate(tx.now).slice(0,7),blocked};
+    const roles=await tx.query<{role:string}>('SELECT role FROM roles WHERE user_id=$1',[userId]);
+    const state:State={staffVisible:roles.some(r=>r.role==='admin'||r.role==='barber'),view:barberId?'services':'masters',lockedBarber:!!barberId,serviceIds:[],selectedStart:null,month:localDate(tx.now).slice(0,7),blocked};
     row=(await tx.query<DraftRow>(`INSERT INTO drafts(user_id,barber_id,state,expires_at) VALUES($1,$2,$3::jsonb,$4::timestamptz+interval '30 minutes') ON CONFLICT(user_id) DO UPDATE SET barber_id=EXCLUDED.barber_id,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,version=drafts.version+1 RETURNING *`,[userId,barberId,JSON.stringify(state),tx.now]))[0];
     return show(blocked?'invalid_link':'started');
   }
   async function handleClientAction(actor:Actor,callbackId:Id,actionTx:Tx):Promise<CommandResult>{
     if(actionTx!==tx)throw Error('invalid_context');
     if(actor.telegramId!==owner.telegramId)throw new DomainError('forbidden','Кнопка недоступна.');
+    const transfer=await handleTransferCallback(context,callbackId);if(transfer)return transfer;
     const staff=(await tx.query<{user_id:string;visit_id:string;visit_version:number;action:'confirmBooking'|'declineBooking';expires_at:Date|string;consumed_at:unknown}>('SELECT * FROM staff_callbacks WHERE id::text=$1',[callbackId]))[0];
     if(staff){
       if(staff.user_id!==userId)throw new DomainError('forbidden','Эта кнопка предназначена другому пользователю.');
@@ -171,7 +202,7 @@ export function createClientController(context:Context,owner:Actor){
       return {status:'stale_callback',nextWake:tx.now};
     }
     if(cb.draft_id!==row.id||cb.draft_version!==row.version||cb.consumed_at||Date.parse(stamp(cb.expires_at))<=Date.parse(tx.now))return show('stale_callback','Кнопка устарела. Продолжите текущую форму.');
-    const managementAction=['bookings','settings','newBooking'].includes(cb.action.kind);
+    const managementAction=['bookings','settings','newBooking','staffTransfers'].includes(cb.action.kind);
     if(!active()&&!managementAction)return show('stale_callback','Заявка уже отправлена или ссылка недоступна. Для новой записи откройте /start.');
     await tx.query('UPDATE callbacks SET consumed_at=$2 WHERE id::text=$1',[callbackId,tx.now]);
     const s=row.state,a=cb.action;
@@ -182,10 +213,29 @@ export function createClientController(context:Context,owner:Actor){
         s.returnView=undefined;
       }else{
         if(!management())s.returnView=s.view;
-        s.view=a.kind as 'bookings'|'settings';s.page=Math.max(0,Math.min(10000,Number(a.page)||0));s.cancelPrompt=undefined;
+        s.view=a.kind as 'bookings'|'settings'|'staffTransfers';s.transfer=undefined;s.page=Math.max(0,Math.min(10000,Number(a.page)||0));s.cancelPrompt=undefined;
         if(a.kind==='settings')await reconcileReminders(context);
       }
       s.phase=undefined;s.contactContext=undefined;if(a.kind==='newBooking'&&s.view==='summary')await onboarding();await persist();return show();
+    }
+    if(a.kind==='transferVisit'){
+      const side=a.side==='staff'?'staff':'client';await prepareTransferAvailability(context,a.id,Number(a.version),side);
+      s.transfer={id:a.id,version:Number(a.version),side};s.view='transferCalendar';s.phase=undefined;s.month=localDate(tx.now).slice(0,7);await persist();return show();
+    }
+    if(a.kind.startsWith('transfer')&&s.transfer){
+      const t=s.transfer;
+      if(a.kind==='transferExit'){s.view=t.side==='client'?'bookings':'staffTransfers';s.transfer=undefined;}
+      else if(a.kind==='transferBack'){s.phase=undefined;s.view=s.view==='transferTimes'?'transferCalendar':'transferTimes';t.start=undefined;}
+      else if(a.kind==='transferMonth'&&s.view==='transferCalendar'){calendarMonth(a.month,new Set());s.month=a.month;}
+      else if(a.kind==='transferDay'&&s.view==='transferCalendar'){
+        const d=await prepareTransferAvailability(context,t.id,t.version,t.side);if(!d.slots(`${a.day}T00:00:00+03:00`,`${a.day}T23:59:59+03:00`).length)return show('slot_unavailable');s.day=a.day;s.view='transferTimes';
+      }else if(a.kind==='transferTime'&&s.view==='transferTimes'){
+        const d=await prepareTransferAvailability(context,t.id,t.version,t.side);if(!d.slots(a.start,a.start).length)return show('slot_unavailable');t.start=a.start;s.view='transferSummary';s.phase=t.side==='staff'?'reason':undefined;
+      }else if(a.kind==='transferSubmit'&&s.view==='transferSummary'&&!s.phase&&t.start){
+        const result=await executeTransfer(context,{kind:t.side==='client'?'requestTransfer':'proposeTransfer',visitId:t.id,expectedVersion:t.version,newStart:t.start,reason:t.reason});
+        s.view=t.side==='client'?'bookings':'staffTransfers';s.transfer=undefined;await persist();await show(result.status,'Перенос отправлен. Старое время действует до согласия.');return result;
+      }else return show('invalid_state');
+      await persist();return show();
     }
     if(a.kind==='reminder'&&s.view==='settings'){
       await setReminderHours(context,Number(a.hours));await persist();return show('reminder_updated');
@@ -241,6 +291,10 @@ export function createClientController(context:Context,owner:Actor){
       const result=await show();
       await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`remove:${updateId}`,updateId,JSON.stringify({text:'Выберите другое время кнопкой выше.',reply_markup:REMOVE_KEYBOARD}),tx.now,row!.id,row!.version,userId]);
       return result;
+    }
+    if(row!.state.phase==='reason'&&row!.state.transfer?.side==='staff'){
+      if(!validTransferReason(text))return show('reason_required','Укажите причину одной строкой, до 500 символов.');
+      row!.state.transfer.reason=text.trim();row!.state.phase=undefined;await persist();return show();
     }
     if(row!.state.phase!=='name')return {status:'ignored_input',nextWake:null};
     if(!meaningful(text))return show('invalid_name','Введите имя одной строкой, от 1 до 80 символов.');

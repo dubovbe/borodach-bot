@@ -31,11 +31,11 @@ async function flow(){
   const f=clientDatabase(),bot=createBot(bindings,new RealRepository(f.database));
   vi.spyOn(globalThis,'fetch').mockResolvedValue(Response.json({ok:true,result:true}));
   let update=700;
-  const message=async(text:string)=>bot.handleUpdate({update_id:update++,message:{message_id:1,date:1,text,...(text.startsWith('/start')?{entities:[{type:'bot_command' as const,offset:0,length:6}]}:{}),from:{id:100,is_bot:false,first_name:'Test'},chat:{id:100,type:'private',first_name:'Test'}}});
-  const current=()=>f.outbox.find(o=>o.kind==='client_screen'&&o.status==='pending')?.payload;
-  const button=(label:string)=>{const s=current();const b=s?.reply_markup.inline_keyboard.flat().find((b:any)=>/^\d+$/.test(label)?b.text===label:b.text.includes(label));expect(b,JSON.stringify(s)).toBeTruthy();return b.callback_data;};
+  const message=async(text:string,actor=100)=>bot.handleUpdate({update_id:update++,message:{message_id:1,date:1,text,...(text.startsWith('/start')?{entities:[{type:'bot_command' as const,offset:0,length:6}]}:{}),from:{id:actor,is_bot:false,first_name:'Test'},chat:{id:actor,type:'private',first_name:'Test'}}});
+  const current=(actor=100)=>f.outbox.find(o=>o.kind==='client_screen'&&o.status==='pending'&&o.chat_id===String(actor))?.payload;
+  const button=(label:string,actor=100)=>{const s=current(actor);const b=s?.reply_markup.inline_keyboard.flat().find((b:any)=>/^\d+$/.test(label)?b.text===label:b.text.includes(label));expect(b,JSON.stringify(s)).toBeTruthy();return b.callback_data;};
   const clickId=async(id:string,actor=100,updateId=update++)=>bot.handleUpdate({update_id:updateId,callback_query:{id:'ack',chat_instance:'private',from:{id:actor,is_bot:false,first_name:'Test'},data:id,message:{message_id:1,date:1,chat:{id:actor,type:'private',first_name:'Test'},text:'Screen'}}});
-  const click=async(label:string)=>clickId(button(label));
+  const click=async(label:string,actor=100)=>clickId(button(label,actor),actor);
   return {...f,bot,message,current,button,clickId,click,schedulerFetch,bindings};
 }
 it('management entry is reachable before profile and settings phone Back returns to settings',async()=>{
@@ -162,4 +162,68 @@ it.each([['onboarding',true],['onboarding',false],['stale-refresh',true],['stale
   if(reverts)f.setPrice(160000);await f.clickId(submit);
   if(reverts){expect(f.visits.size).toBe(0);expect(f.current().text).toContain('Условия изменились');}
   else {expect(f.visits.size).toBe(1);expect([...f.visits.values()][0].items[0].priceKopecks).toBe(150000);}
+});
+
+it('confirmed own bookings expose a transfer selection button',async()=>{
+ const f=await flow(),u=f.user('100');await f.message('/start');
+ const id=crypto.randomUUID();f.visits.set(id,{id,client_id:u.client,barber_id:'00000000-0000-4000-8000-000000000002',status:'confirmed',start_at:'2026-11-07T07:00:00.000Z',end_at:'2026-11-07T07:45:00.000Z',version:1,schedule_generation:1,items:[{serviceId:'00000000-0000-4000-8000-000000000003',name:'Frozen haircut',priceKopecks:123400,durationMinutes:45}]});
+ await f.click('Мои записи');expect(f.current().reply_markup.inline_keyboard.flat().some((b:any)=>b.text.startsWith('Перенести'))).toBe(true);
+});
+function frozenVisit(f:Awaited<ReturnType<typeof flow>>){const u=f.user('100'),id=crypto.randomUUID();const v={id,client_id:u.client,barber_id:'00000000-0000-4000-8000-000000000002',status:'confirmed',start_at:'2026-11-07T07:00:00.000Z',end_at:'2026-11-07T07:45:00.000Z',version:1,schedule_generation:1,items:[{serviceId:'00000000-0000-4000-8000-000000000003',name:'Frozen haircut',priceKopecks:123400,durationMinutes:45}]};f.visits.set(id,v);return v;}
+it('real client transfer review and submission deliver independent staff consent surviving start',async()=>{
+ const f=await flow(),v=frozenVisit(f);await f.message('/start');await f.click('Мои записи');await f.click('Перенести');await f.click('7');await f.click('11:00');
+ expect(f.current().text).toContain('1234 ₽');expect(f.current().text).toContain('45 мин.');expect(f.transfers.size).toBe(0);const submit=f.button('Отправить запрос');
+ await f.clickId(submit);expect(f.transfers.size).toBe(1);expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');
+ const sent:any[]=[];const outbox=new Outbox(f.database,{send:async d=>{sent.push(d);return {messageId:'transfer'};}});await outbox.deliver(f.now,5);
+ const card=sent.find(d=>d.chatId==='200'&&d.payload.text.includes('Перенос ожидает'));expect(card.payload.text).toContain('Было:');expect(card.payload.text).toContain('Предложено:');
+ const accept=card.payload.reply_markup.inline_keyboard[0].find((b:any)=>b.text==='Принять').callback_data;
+ await f.message('/start',200);await f.clickId(accept,200);expect(v.start_at).toBe('2026-11-07T08:00:00.000Z');expect(v.schedule_generation).toBe(2);
+ await f.clickId(accept,200);expect(v.version).toBe(2);
+});
+it('real staff menu selects a resource, saves reason and requires explicit client consent',async()=>{
+ const f=await flow(),v=frozenVisit(f);await f.message('/start',200);await f.click('Записи для переноса',200);await f.click('Вымышленный мастер',200);await f.click('6',200);await f.click('07:30',200);
+ expect(f.current(200).text).toContain('причину');await f.message('Bad\nReason',200);expect(f.transfers.size).toBe(0);await f.message('Смена рабочего времени',200);
+ expect(f.current(200).text).toContain('Смена рабочего времени');expect(f.current(200).text).toContain('1234 ₽');expect(f.transfers.size).toBe(0);
+ await f.click('Отправить предложение',200);expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');
+ const sent:any[]=[];const outbox=new Outbox(f.database,{send:async d=>{sent.push(d);return {messageId:'transfer'};}});await outbox.deliver(f.now,5);
+ const card=sent.find(d=>d.chatId==='100'&&d.payload.text.includes('Перенос ожидает'));expect(card.payload.text).toContain('Смена рабочего времени');
+ const accept=card.payload.reply_markup.inline_keyboard[0].find((b:any)=>b.text==='Принять').callback_data;
+ await f.message('/start');await f.clickId(accept,101);expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');await f.clickId(accept);expect(v.start_at).toBe('2026-11-06T04:30:00.000Z');
+});
+it.each(['expired','revoked'] as const)('transfer cards suppress %s recipients at prepare even without scheduler cleanup',async scenario=>{
+ const f=await flow(),v=frozenVisit(f);f.user('200');const repo=new RealRepository(f.database);
+ const t=await repo.execute({telegramId:'100'},{kind:'requestTransfer',visitId:v.id,expectedVersion:1,newStart:'2026-11-07T08:00:00.000Z'},'95001');expect(t.status).toBe('pending');
+ if(scenario==='revoked')f.user('200').roles=[];
+ else{const transaction=f.database.transaction;f.database.transaction=run=>transaction(tx=>run({...tx,now:'2026-11-06T05:00:00.000Z'}));}
+ const deliveries:any[]=[];await new Outbox(f.database,{send:async d=>{deliveries.push(d);return {messageId:'suppression'};}}).deliver('2026-11-06T05:00:00.000Z',5);
+ expect(deliveries.some(d=>d.chatId==='200'&&d.entityId===t.entityId)).toBe(false);
+ expect(f.outbox.find(o=>o.entity_id===t.entityId&&o.chat_id==='200').status).toBe('cancelled');expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');
+});
+it.each([false,true])('declined notification targets the actual admin author and fences revoked status %s',async revoked=>{
+ const f=await flow(),v=frozenVisit(f);f.user('201').roles=['admin'];f.user('200');const repo=new RealRepository(f.database);
+ const t=await repo.execute({telegramId:'201'},{kind:'proposeTransfer',visitId:v.id,expectedVersion:1,newStart:'2026-11-07T08:00:00.000Z',reason:'Изменение графика'},'95001');expect(t.status).toBe('pending');
+ expect((await repo.execute({telegramId:'100'},{kind:'decideTransfer',transferId:t.entityId!,expectedVersion:1,accept:false},'95002')).status).toBe('declined');
+ if(revoked)f.user('201').roles=[];
+ const sent:any[]=[];await new Outbox(f.database,{send:async d=>{sent.push(d);return {messageId:'decline'};}}).deliver(f.now,5);
+ expect(!!sent.find(d=>d.chatId==='201'&&d.payload.text.includes('Перенос отклонён'))).toBe(!revoked);
+});
+it('real Worker transfer callback commits before scheduler failure and exact replay creates only one proposal',async()=>{
+ const f=await flow(),v=frozenVisit(f);await f.message('/start');await f.click('Мои записи');await f.click('Перенести');await f.click('7');await f.click('11:00');const submit=f.button('Отправить запрос');
+ vi.spyOn(Client.prototype,'connect').mockResolvedValue();vi.spyOn(Client.prototype,'end').mockResolvedValue();
+ vi.spyOn(Client.prototype,'query').mockImplementation((async(text:string,values:unknown[]=[])=>{
+  if(text.startsWith('SELECT id FROM shop'))return {rows:[{id:1}]};
+  if(text.startsWith('SELECT clock_timestamp'))return {rows:[{now:new Date(f.now)}]};
+  if(text==='BEGIN'||text==='COMMIT'||text==='ROLLBACK'||text.startsWith('SET LOCAL'))return {rows:[]};
+  return {rows:await f.database.read(sql=>sql.query(text,values))};
+ }) as never);
+ const update={update_id:99501,callback_query:{id:'ack',chat_instance:'private',from:{id:100,is_bot:false,first_name:'Test'},data:submit,message:{message_id:1,date:1,chat:{id:100,type:'private',first_name:'Test'},text:'Transfer review'}}};
+ const request=()=>new Request('https://test/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':f.bindings.WEBHOOK_SECRET},body:JSON.stringify(update)});
+ f.schedulerFetch.mockRejectedValueOnce(Error('synthetic arm failure'));
+ expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(503);expect(f.transfers.size).toBe(1);expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');
+ const callbacks=f.transferCallbacks.size;expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.transfers.size).toBe(1);expect(f.transferCallbacks.size).toBe(callbacks);
+});
+it('a queued staff transfer selection loses private details when resource rights are revoked',async()=>{
+ const f=await flow();frozenVisit(f);await f.message('/start',200);await f.click('Записи для переноса',200);f.user('200').roles=[];
+ const sent:any[]=[];await new Outbox(f.database,{send:async d=>{sent.push(d);return {messageId:'revoked-selection'};}}).deliver(f.now,5);
+ expect(sent.some(d=>d.chatId==='200'&&d.payload.text.includes('Выберите запись для предложения'))).toBe(false);
 });

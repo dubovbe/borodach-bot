@@ -1,3 +1,4 @@
+import {closeTransferWork,recordTransferEvent} from './transfers';
 import type { Tx } from '../db/client';
 import { DomainError, type Command, type CommandResult, type Id, type Instant, type IdentityCommand } from '../domain/types';
 import { isMeaningfulName } from '../identity/service';
@@ -21,6 +22,7 @@ export async function nextDue(tx: Tx): Promise<Instant | null> {
     return rows[0]?.due ? stamp(rows[0].due) : null;
 }
 export async function event(c: Context, kind: string, entityId: Id, visitId: Id, reason?: string): Promise<void> {
+    if(kind.startsWith('transfer_')){await closeTransferWork(c.tx,entityId);await recordTransferEvent(c,kind,entityId,visitId,reason);return;}
     const { tx, userId, updateId } = c;
     const type = kind.startsWith('transfer_') ? 'transfer' : 'visit';
     const text = kind === 'visit_cancelled' && reason
@@ -92,7 +94,7 @@ export async function cleanupExpired(c: Context): Promise<void> {
 }
 export async function executeBooking(c: Context, command: Exclude<Command, {
     kind: 'start';
-} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'}>, expectedReviewedQuote?:string): Promise<CommandResult> {
+} | IdentityCommand | import('../domain/types').ClientCommand | {kind:'setReminderHours'} | import('../domain/types').TransferCommand>, expectedReviewedQuote?:string): Promise<CommandResult> {
     const { tx, userId } = c;
     if (!['requestBooking','changeSchedule','confirmBooking','declineBooking','cancelBooking','withdrawBooking'].includes(command.kind)) refuse('forbidden');
     const roles = await tx.query<{

@@ -116,7 +116,7 @@ it('admin schedule versus request serialized; barber edit refused', async () => 
 it('live client transfer at another barber counts toward pending limit', async () => {
     const v = (await execute('100', request(), '50')).entityId!;
     await execute('200', change('confirmBooking', v), '51');
-    await admin.query("INSERT INTO transfers(visit_id,initiator,status,new_start_at,new_end_at,deadline) VALUES($1,'client','pending',$2,$3,$4)", [v, '2026-11-06T10:00:00Z', '2026-11-06T11:30:00Z', '2026-11-06T06:00:00Z']);
+    expect((await execute('100',{kind:'requestTransfer',visitId:v,expectedVersion:2,newStart:'2026-11-06T10:00:00.000Z'},'53')).status).toBe('pending');
     expect((await execute('100', request(b2), '52')).status).toBe('pending_limit');
 });
 it('real PostgreSQL rank tariff and individual override with availability guards', async () => {

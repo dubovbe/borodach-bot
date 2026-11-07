@@ -1,3 +1,4 @@
+import {prepareTransferCard,transferScreenAllowed,type TransferScreenScope} from '../booking/transfers';
 import { renderInvitation, type IdentityOptions } from '../identity/service';
 import { safeReplyMarkup } from '../bot/screens';
 import type { Database, Tx } from '../db/client';
@@ -73,7 +74,10 @@ export class Outbox {
                     }
                 }
                 if (!invalid && row.kind === 'booking') {
-                    if(typeof row.payload.staffUserId==='string'){
+                    if(row.entity_type==='transfer'){
+                        const card=typeof row.payload.transferUserId==='string'?await prepareTransferCard(tx,row.entity_id!,row.entity_version!,row.payload.transferUserId,row.chat_id,row.payload.buttons,row.payload.reason):null;
+                        if(!card)invalid='stale_entity';else{text=card.text;replyMarkup=safeReplyMarkup(card.keyboard);}
+                    }else if(typeof row.payload.staffUserId==='string'){
                         const card=await prepareStaffDecision(tx,row.entity_id!,row.payload.staffUserId,row.chat_id,row.payload.buttons);
                         if(!card)invalid='stale_entity';else {text=card.text;replyMarkup=safeReplyMarkup(card.keyboard);}
                     }else text = await bookingText(tx, row);
@@ -86,6 +90,7 @@ export class Outbox {
             else if(row.kind==='client_screen'){
                 const current=await tx.query(`SELECT d.id FROM drafts d JOIN telegram_users u ON u.id=d.user_id WHERE d.id=$1 AND d.version=$2 AND d.expires_at>$3 AND u.telegram_id=$4`,[row.draft_id??null,row.draft_version??null,tx.now,row.chat_id]);
                 if(!current.length)invalid='stale_entity';
+                if(!invalid&&row.payload.transferScreen&&!await transferScreenAllowed(tx,row.chat_id,row.payload.transferScreen as TransferScreenScope))invalid='stale_entity';
             }
             else if (!['start', 'delivery_failure'].includes(row.kind))
                 invalid = 'unknown_kind';
