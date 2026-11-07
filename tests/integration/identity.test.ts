@@ -200,8 +200,12 @@ it('start now offers inline booking; contact verification still removes reply ke
   const deliveries: Delivery[] = [];
   const transport = { send: async (job: Delivery) => { deliveries.push(job); return { messageId: 'keyboard' }; } };
   await new Outbox(db(), transport, options).deliver(now, 5);
-  const prompt = deliveries.find(d => d.chatId === '100')?.payload as { reply_markup: unknown };
-  expect(prompt.reply_markup).toMatchObject({ inline_keyboard: [[{ text:'Вымышленный мастер' }]] });
+  const prompt = deliveries.find(d => d.chatId === '100')?.payload as { reply_markup: { inline_keyboard: { text:string }[][] } };
+  expect(prompt.reply_markup.inline_keyboard.flat()).toEqual(expect.arrayContaining([
+    expect.objectContaining({text:'Вымышленный мастер'}),
+    expect.objectContaining({text:'Мои записи'}),
+    expect.objectContaining({text:'Настройки'})
+  ]));
   deliveries.length = 0;
   await execute('100', contact());
   await new Outbox(db(), transport, options).deliver(now, 5);

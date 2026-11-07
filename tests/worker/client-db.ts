@@ -6,11 +6,23 @@ export const fixtureService='00000000-0000-4000-8000-000000000003';
 export function clientDatabase(){
   const now='2026-11-06T04:00:00.000Z',users=new Map<string,any>(),drafts=new Map<string,any>(),callbacks=new Map<string,any>(),staffCallbacks=new Map<string,any>(),results=new Map<string,any>(),visits=new Map<string,any>(),outbox:any[]=[];
   let price=150000, empty=false, noWork=false;
-  const user=(id:string)=>{if(!users.has(id))users.set(id,{id:crypto.randomUUID(),telegram_id:id,version:1,roles:id==='200'?['barber']:['client'],client:crypto.randomUUID(),name:'',phone:null,verified:false});return users.get(id);};
+  const user=(id:string)=>{if(!users.has(id))users.set(id,{id:crypto.randomUUID(),telegram_id:id,version:1,roles:id==='200'?['barber']:['client'],client:crypto.randomUUID(),name:'',phone:null,verified:false,reminder_hours:2});return users.get(id);};
   const byId=(id:string)=>[...users.values()].find(u=>u.id===id);
   const uid=(id:string)=>user(id).id;
   const record=(v:any)=>outbox.push({id:crypto.randomUUID(),status:'pending',due_at:now,attempts:0,entity_id:null,entity_version:null,entity_type:null,...v});
   const query=async(sql:string,v:any[]=[]):Promise<any[]>=>{
+    if(sql.startsWith('SELECT reminder_hours,phone'))return [{reminder_hours:byId(v[0]).reminder_hours,phone:byId(v[0]).phone}];
+    if(sql.startsWith('SELECT reminder_hours FROM clients'))return [{reminder_hours:byId(v[0]).reminder_hours}];
+    if(sql.startsWith('UPDATE clients SET reminder_hours')){byId(v[0]).reminder_hours=v[1];return [];}
+    if(sql.startsWith('SELECT v.id,v.version,v.start_at'))return [...visits.values()].filter(x=>x.status==='confirmed'&&Date.parse(x.start_at)>Date.parse(v[0])&&(!v[1]||[...users.values()].find(u=>u.client===x.client_id)?.id===v[1])&&(!v[2]||x.id===v[2])).map(x=>{const u=[...users.values()].find(u=>u.client===x.client_id);return {...x,chat_id:u.telegram_id,reminder_hours:u.reminder_hours,confirmed_at:null,reminders:outbox.filter(o=>o.kind==='reminder'&&o.entity_id===x.id).map(o=>({...o,sent_at:o.sent_at??null}))};});
+    if(sql.startsWith('WITH cancelled AS')){
+      for(const o of outbox)if(v[0].includes(o.id))Object.assign(o,{status:'cancelled',claim_token:null});
+      for(const p of JSON.parse(v[1])){const o=outbox.find(o=>o.logical_key===p.key);if(o)Object.assign(o,{payload:p.payload,due_at:p.dueAt,status:'pending',claim_token:null});else record({logical_key:p.key,kind:'reminder',chat_id:p.chatId,payload:p.payload,due_at:p.dueAt,entity_id:p.visitId,entity_version:p.version,entity_type:'visit',sent_at:null});}
+      return [];
+    }
+    if(sql.startsWith('SELECT v.id,v.version,v.status,v.start_at'))return [...visits.values()].filter(x=>[...users.values()].find(u=>u.client===x.client_id)?.id===v[0]&&['pending','confirmed'].includes(x.status)&&Date.parse(x.start_at)>Date.parse(v[1])).sort((a,b)=>a.start_at.localeCompare(b.start_at)).slice(v[2],v[2]+6).map(x=>({...x,barber:'Вымышленный мастер',items:x.items.map((i:any)=>i.name).join(', ')}));
+    if(sql.startsWith('SELECT v.id,v.version,v.status FROM visits')){const x=visits.get(v[0]);return x&&[...users.values()].find(u=>u.client===x.client_id)?.id===v[1]&&Date.parse(x.start_at)>Date.parse(v[2])?[x]:[];}
+    if(sql.startsWith('SELECT v.id FROM visits v JOIN clients')){const x=visits.get(v[0]);return x&&x.version===v[1]&&x.status==='confirmed'&&Date.parse(x.start_at)>Date.parse(v[2])&&[...users.values()].find(u=>u.client===x.client_id)?.telegram_id===v[3]?[{id:x.id}]:[];}
     if(sql.startsWith('SELECT result FROM processed_updates'))return results.has(v[0])?[{result:results.get(v[0])}]:[];
     if(sql.startsWith('INSERT INTO processed_updates')){results.set(v[0],JSON.parse(v[2]));return [];}
     if(sql.startsWith('INSERT INTO telegram_users'))return [{id:uid(v[0])}];
@@ -18,6 +30,13 @@ export function clientDatabase(){
     if(sql.startsWith('WITH ended AS')){for(const d of drafts.values())if(d.user_id===v[0]){d.expires_at=v[1];d.version++;for(const o of outbox)if(o.draft_id===d.id&&['pending','leased'].includes(o.status))o.status='cancelled';}return [];}
     if(sql.startsWith('INSERT INTO drafts')){let d=[...drafts.values()].find(d=>d.user_id===v[0]);d={id:d?.id??crypto.randomUUID(),user_id:v[0],barber_id:v[1],state:JSON.parse(v[2]),expires_at:new Date(Date.parse(now)+1800000).toISOString(),version:(d?.version??0)+1};drafts.set(d.id,d);return [structuredClone(d)];}
     if(sql.startsWith('UPDATE drafts SET barber_id')){const d=drafts.get(v[0]);Object.assign(d,{barber_id:v[1],state:JSON.parse(v[2]),version:d.version+1});return [structuredClone(d)];}
+    if(sql.startsWith('WITH updated AS')){
+      const d=drafts.get(v[0]);if(!d||d.user_id!==v[3]||d.version!==v[4]||Date.parse(d.expires_at)<=Date.parse(v[5]))return [];
+      Object.assign(d,{barber_id:v[1],state:JSON.parse(v[2]),version:d.version+1});
+      for(const o of outbox)if(o.draft_id===d.id&&['pending','leased'].includes(o.status))Object.assign(o,{status:'cancelled',claim_token:null,lease_until:null});
+      for(const b of JSON.parse(v[6]))callbacks.set(b.id,{id:b.id,user_id:d.user_id,draft_id:d.id,draft_version:d.version,action:b.action,expires_at:new Date(Math.min(Date.parse(d.expires_at),Date.parse(v[5])+1800000)).toISOString(),consumed_at:null});
+      record({logical_key:v[7],kind:'client_screen',chat_id:byId(d.user_id).telegram_id,payload:JSON.parse(v[9]),draft_id:d.id,draft_version:d.version});return [structuredClone(d)];
+    }
     if(sql.startsWith('INSERT INTO callbacks')){for(const b of JSON.parse(v[5]))callbacks.set(b.id,{id:b.id,user_id:v[0],draft_id:v[1],draft_version:v[2],action:b.action,expires_at:v[3],consumed_at:null});return [];}
     if(sql.startsWith('SELECT * FROM callbacks'))return callbacks.has(v[0])?[callbacks.get(v[0])]:[];
     if(sql.startsWith('UPDATE callbacks SET consumed_at')){callbacks.get(v[0]).consumed_at=v[1];return [];}
@@ -59,7 +78,7 @@ export function clientDatabase(){
     if(sql.startsWith('SELECT user_id FROM phone_claims'))return [];
     if(sql.startsWith('INSERT INTO clients(user_id,name,phone)')){const u=byId(v[0]);u.phone=v[1];return [{id:u.client}];}
     if(sql.startsWith('WITH released AS')){byId(v[0]).verified=true;return [];}
-    if(sql.startsWith('UPDATE outbox SET status=\'leased\'')){const o=outbox.find(o=>o.status==='pending');if(!o)return [];Object.assign(o,{status:'leased',claim_token:crypto.randomUUID(),attempts:o.attempts+1});return [structuredClone(o)];}
+    if(sql.startsWith('UPDATE outbox SET status=\'leased\'')){const o=outbox.find(o=>o.status==='pending'&&Date.parse(o.due_at)<=Date.parse(v[0]));if(!o)return [];Object.assign(o,{status:'leased',claim_token:crypto.randomUUID(),attempts:o.attempts+1});return [structuredClone(o)];}
     if(sql.startsWith('SELECT id FROM outbox WHERE'))return outbox.some(o=>o.id===v[0]&&o.claim_token===v[1]&&o.status==='leased')?[{id:v[0]}]:[];
     if(sql.startsWith('SELECT unreachable_at,version'))return [{version:1,unreachable_at:null}];
     if(sql.startsWith('SELECT d.id FROM drafts')){const d=drafts.get(v[0]);return d&&d.version===v[1]?[{id:d.id}]:[];}

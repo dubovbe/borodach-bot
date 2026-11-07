@@ -6,8 +6,9 @@ import { prepareAvailability, localDate } from '../schedule/service';
 import { hashToken, isMeaningfulName as meaningful } from '../identity/service';
 import { calendarMonth, createScreenRenderer, type ClientView, type ScreenButton, CONTACT_TEXT, REMOVE_KEYBOARD } from './screens';
 import { queueStaffDecision, staffVisit } from './staff';
+import { reconcileReminders, setReminderHours } from '../notifications/reminders';
 
-type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact';quote?:string;submitted?:boolean;blocked?:boolean};
+type State={view:ClientView;lockedBarber:boolean;serviceIds:string[];selectedStart:string|null;month:string;day?:string;phase?:'name'|'contact';quote?:string;submitted?:boolean;blocked?:boolean;returnView?:ClientView;contactContext?:'settings';page?:number;cancelPrompt?:{id:string;version:number;kind:'cancelBooking'|'withdrawBooking'}};
 type DraftRow={id:string;user_id:string;barber_id:string|null;version:number;expires_at:Date|string;state:State};
 const stamp=(v:Date|string)=>new Date(v).toISOString();
 export function createClientController(context:Context,owner:Actor){
@@ -18,7 +19,8 @@ export function createClientController(context:Context,owner:Actor){
   let summary:Awaited<ReturnType<typeof reviewedQuote>>|undefined;
   const draft=():Draft=>({id:row!.id,telegramId:owner.telegramId,version:row!.version,barberId:row!.barber_id,lockedBarber:row!.state.lockedBarber,serviceIds:row!.state.serviceIds,selectedStart:row!.state.selectedStart,expiresAt:stamp(row!.expires_at)});
   const load=async()=>{row=(await tx.query<DraftRow>('SELECT * FROM drafts WHERE user_id=$1',[userId]))[0];return row;};
-  const active=()=>row&&Date.parse(stamp(row.expires_at))>Date.parse(tx.now)&&!row.state.submitted&&!row.state.blocked;
+  const management=()=>row?.state.view==='bookings'||row?.state.view==='settings';
+  const active=()=>row&&Date.parse(stamp(row.expires_at))>Date.parse(tx.now)&&((!row.state.submitted&&!row.state.blocked)||management());
   const data=async()=>{
     if(!row?.barber_id)throw new DomainError('offer_unavailable','Выберите мастера.');
     if(!prepared)prepared=await prepareAvailability({barberId:row.barber_id,serviceIds:row.state.serviceIds,from:tx.now,to:tx.now,actorMode:'client'},tx);
@@ -36,8 +38,11 @@ export function createClientController(context:Context,owner:Actor){
   };
   const button=(text:string,action:Record<string,unknown>):ScreenButton=>({text:text.slice(0,100),action});
   const back=()=>button('Назад',{kind:'back'});
+  const managementButtons=()=>[button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'})];
+  const submittedContent=()=>({text:'Заявка отправлена и ожидает решения мастера.',rows:[[button('Новая запись',{kind:'newBooking'})]]});
   const renderer=createScreenRenderer({
     callbacks:async(d,rows)=>{
+      rows=[...rows,managementButtons()];
       if(!rows.length)rows=[[button('Обновить',{kind:'refresh'})]];
       const all=rows.flat().map(b=>({...b,id:crypto.randomUUID()}));
       await tx.query(`INSERT INTO callbacks(id,user_id,draft_id,draft_version,action,expires_at) SELECT x.id,$1,$2,$3,x.action,LEAST($4::timestamptz,$5::timestamptz+interval '30 minutes') FROM jsonb_to_recordset($6::jsonb) AS x(id uuid,action jsonb)`,[userId,d.id,d.version,d.expiresAt,tx.now,JSON.stringify(all)]);
@@ -45,10 +50,31 @@ export function createClientController(context:Context,owner:Actor){
     },
     describe:async(_d,view)=>{
       const s=row!.state;
-      if(s.blocked)return {text:'Ссылка мастера недоступна. Откройте новую ссылку или общий вход /start.',rows:[[button('Обновить',{kind:'refresh'})]]};
-      if(s.submitted)return {text:'Заявка отправлена и ожидает решения мастера. Для новой записи откройте /start.',rows:[[button('Обновить',{kind:'refresh'})]]};
+      if(s.blocked&&!management())return {text:'Ссылка мастера недоступна. Откройте новую ссылку или общий вход /start.',rows:[[button('Обновить',{kind:'refresh'})]]};
+      if(s.submitted&&!management())return submittedContent();
       if(s.phase==='name')return {text:'Введите ваше имя (от 1 до 80 символов).',rows:[[back()]]};
       if(s.phase==='contact')return {text:CONTACT_TEXT,contact:true,rows:[]};
+      if(view==='settings'){
+        const p=(await tx.query<{reminder_hours:number;phone:string|null}>('SELECT reminder_hours,phone FROM clients WHERE user_id=$1',[userId]))[0];
+        return {text:`Напоминание: за ${p?.reminder_hours??2} ч. до записи.\nТелефон: ${p?.phone??'не указан'}`,rows:[([1,2,3,4,5].map(hours=>button(`${hours} ч.`,{kind:'reminder',hours}))),[button('Телефон',{kind:'phone'})],[button('К записи',{kind:'newBooking'})]]};
+      }
+      if(view==='bookings'){
+        const visits=await tx.query<{id:string;version:number;status:string;start_at:Date|string;barber:string;items:string}>(`SELECT v.id,v.version,v.status,v.start_at,b.name AS barber,
+          COALESCE((SELECT string_agg(i.name,', ' ORDER BY i.id) FROM visit_items i WHERE i.visit_id=v.id),'') AS items
+          FROM visits v JOIN clients c ON c.id=v.client_id JOIN barbers b ON b.id=v.barber_id
+          WHERE c.user_id=$1 AND v.status IN ('pending','confirmed') AND v.start_at>$2
+          ORDER BY v.start_at,v.id LIMIT 6 OFFSET $3`,[userId,tx.now,(s.page??0)*5]);
+        if(s.cancelPrompt){
+          const prompt=s.cancelPrompt,v=visits.find(v=>v.id===prompt.id&&v.version===prompt.version);
+          if(v)return {text:`${prompt.kind==='withdrawBooking'?'Отозвать заявку':'Отменить запись'}?\n${v.barber}, ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)`,rows:[[button('Да, отменить',{kind:'confirmOwn',id:v.id,version:v.version,operation:prompt.kind})],[button('Нет',{kind:'bookings',page:s.page??0})]]};
+          s.cancelPrompt=undefined;
+        }
+        const shown=visits.slice(0,5),rows=shown.map(v=>[button(`${v.status==='pending'?'Отозвать':'Отменить'} · ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`,{kind:'promptOwn',id:v.id,version:v.version,operation:v.status==='pending'?'withdrawBooking':'cancelBooking'})]);
+        const pages:ScreenButton[]=[];if(s.page)pages.push(button('‹',{kind:'bookings',page:s.page-1}));if(visits.length>5)pages.push(button('›',{kind:'bookings',page:(s.page??0)+1}));
+        // Keep every visit's controls usable even when its immutable service snapshot is large.
+        const preview=(text:string,limit:number)=>text.length<=limit?text:text.slice(0,limit-1).replace(/[\uD800-\uDBFF]$/,'')+'…';
+        return {text:shown.length?shown.map(v=>`${v.status==='pending'?'Ожидает решения':'Подтверждена'} · ${new Date(v.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)\nМастер: ${preview(v.barber,120)}\n${preview(v.items,500)}`).join('\n\n'):'Предстоящих записей нет.',rows:[...rows,...(pages.length?[pages]:[]),[button('К записи',{kind:'newBooking'})]]};
+      }
       if(view==='masters'){
         const masters=await tx.query<{id:string;name:string}>('SELECT id,name FROM barbers WHERE archived_at IS NULL ORDER BY name,id',[]);
         return {text:masters.length?'Выберите мастера.':'Пока нет доступных мастеров. Попробуйте позже или /start.',rows:masters.map(m=>[button(m.name,{kind:'master',id:m.id})])};
@@ -87,6 +113,30 @@ export function createClientController(context:Context,owner:Actor){
     await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`screen:${updateId}:${crypto.randomUUID()}`,updateId,JSON.stringify({text:(notice?`${notice}\n`:'')+screen.text,reply_markup:screen.keyboard}),tx.now,row!.id,row!.version,userId]);
     return {entityId:row!.id,status,nextWake:tx.now};
   };
+  const finalizeSubmitted=async()=>{
+    const content=submittedContent(),rows=[...content.rows,managementButtons()];
+    const all=rows.flat().map(b=>({...b,id:crypto.randomUUID()}));
+    let index=0;const keyboard={inline_keyboard:rows.map(r=>r.map(b=>({text:b.text,callback_data:all[index++].id})))};
+    // One post-booking roundtrip: every callback and screen derives its scope from
+    // the updated draft, and old leased screens lose their acknowledgement claim.
+    const saved=await tx.query<DraftRow>(`WITH updated AS (
+      UPDATE drafts SET barber_id=$2,state=$3::jsonb,version=version+1
+      WHERE id=$1 AND user_id=$4 AND version=$5 AND expires_at>$6 RETURNING *
+    ), cancelled AS (
+      UPDATE outbox SET status='cancelled',claim_token=NULL,lease_until=NULL,version=version+1
+      WHERE draft_id IN (SELECT id FROM updated) AND status IN ('pending','leased')
+    ), stored_callbacks AS (
+      INSERT INTO callbacks(id,user_id,draft_id,draft_version,action,expires_at)
+      SELECT x.id,d.user_id,d.id,d.version,x.action,LEAST(d.expires_at,$6::timestamptz+interval '30 minutes')
+      FROM updated d CROSS JOIN jsonb_to_recordset($7::jsonb) AS x(id uuid,action jsonb)
+    ), screen AS (
+      INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version)
+      SELECT $8,$9,'client_screen',u.telegram_id,$10::jsonb,$6,d.id,d.version
+      FROM updated d JOIN telegram_users u ON u.id=d.user_id
+    ) SELECT * FROM updated`,[row!.id,row!.barber_id,JSON.stringify(row!.state),userId,row!.version,tx.now,JSON.stringify(all),`screen:${updateId}:${crypto.randomUUID()}`,updateId,JSON.stringify({text:content.text,reply_markup:keyboard})]);
+    if(saved.length!==1)throw Error('submitted_draft_changed');
+    row=saved[0];
+  };
   const onboarding=async()=>{
     const p=(await tx.query<{name:string;verified:boolean}>(`SELECT c.name,EXISTS(SELECT 1 FROM phone_claims p WHERE p.client_id=c.id AND p.user_id=c.user_id AND p.phone=c.phone AND p.released_at IS NULL) AS verified FROM clients c WHERE c.user_id=$1`,[userId]))[0];
     row!.state.phase=!p||!meaningful(p.name)?'name':!p.verified?'contact':undefined;
@@ -120,15 +170,40 @@ export function createClientController(context:Context,owner:Actor){
       await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at) SELECT $1,$2,'start',telegram_id,$3::jsonb,$4 FROM telegram_users WHERE id=$5`,[`expired-form:${updateId}`,updateId,JSON.stringify({text:'Срок формы истёк. Откройте /start или новую ссылку мастера.'}),tx.now,userId]);
       return {status:'stale_callback',nextWake:tx.now};
     }
-    if(!active())return show('stale_callback','Заявка уже отправлена или ссылка недоступна. Для новой записи откройте /start.');
     if(cb.draft_id!==row.id||cb.draft_version!==row.version||cb.consumed_at||Date.parse(stamp(cb.expires_at))<=Date.parse(tx.now))return show('stale_callback','Кнопка устарела. Продолжите текущую форму.');
+    const managementAction=['bookings','settings','newBooking'].includes(cb.action.kind);
+    if(!active()&&!managementAction)return show('stale_callback','Заявка уже отправлена или ссылка недоступна. Для новой записи откройте /start.');
     await tx.query('UPDATE callbacks SET consumed_at=$2 WHERE id::text=$1',[callbackId,tx.now]);
     const s=row.state,a=cb.action;
+    if(managementAction){
+      if(a.kind==='newBooking'){
+        s.view=s.submitted?(s.lockedBarber?'services':'masters'):(s.returnView??(s.lockedBarber?'services':'masters'));
+        if(s.submitted){s.serviceIds=[];s.selectedStart=null;s.quote=undefined;s.submitted=false;if(!s.lockedBarber)row.barber_id=null;}
+        s.returnView=undefined;
+      }else{
+        if(!management())s.returnView=s.view;
+        s.view=a.kind as 'bookings'|'settings';s.page=Math.max(0,Math.min(10000,Number(a.page)||0));s.cancelPrompt=undefined;
+        if(a.kind==='settings')await reconcileReminders(context);
+      }
+      s.phase=undefined;s.contactContext=undefined;if(a.kind==='newBooking'&&s.view==='summary')await onboarding();await persist();return show();
+    }
+    if(a.kind==='reminder'&&s.view==='settings'){
+      await setReminderHours(context,Number(a.hours));await persist();return show('reminder_updated');
+    }
+    if(a.kind==='phone'&&s.view==='settings'){s.phase='contact';s.contactContext='settings';await persist();return show();}
+    if((a.kind==='promptOwn'||a.kind==='confirmOwn')&&s.view==='bookings'){
+      const v=(await tx.query<{id:string;version:number;status:string}>(`SELECT v.id,v.version,v.status FROM visits v JOIN clients c ON c.id=v.client_id WHERE v.id::text=$1 AND c.user_id=$2 AND v.start_at>$3 AND v.status IN ('pending','confirmed')`,[a.id,userId,tx.now]))[0];
+      const kind=a.operation==='withdrawBooking'?'withdrawBooking':'cancelBooking';
+      if(!v||v.version!==Number(a.version)||v.status!==(kind==='withdrawBooking'?'pending':'confirmed')){s.cancelPrompt=undefined;await persist();return show('stale_callback','Запись изменилась. Список обновлён.');}
+      if(a.kind==='promptOwn'){s.cancelPrompt={id:v.id,version:v.version,kind};await persist();return show();}
+      const result=await executeBooking(context,{kind,visitId:v.id,expectedVersion:v.version,purpose:'client'});
+      s.cancelPrompt=undefined;await persist();await show(result.status);return result;
+    }
     if(a.kind==='submit'){
       if(s.view!=='summary'||s.phase||!s.selectedStart||!s.quote) return show('invalid_state');
       try{
         const result=await executeBooking(context,{kind:'requestBooking',barberId:row.barber_id!,serviceIds:s.serviceIds,start:s.selectedStart},s.quote);
-        s.submitted=true;await persist();return result;
+        s.submitted=true;await finalizeSubmitted();return result;
       }catch(error){
         if(!(error instanceof DomainError)||!['quote_conflict','offer_unavailable','slot_unavailable'].includes(error.code))throw error;
         s.selectedStart=null;s.quote=undefined;prepared=undefined;summary=undefined;
@@ -161,6 +236,7 @@ export function createClientController(context:Context,owner:Actor){
   async function saveDraftInput(text:string):Promise<CommandResult>{
     await load();if(!active())return {status:'ignored_input',nextWake:null};
     if(row!.state.phase==='contact'&&text==='Назад'){
+      if(row!.state.contactContext==='settings'){row!.state.phase=undefined;row!.state.contactContext=undefined;await persist();const result=await show();await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`remove:${updateId}`,updateId,JSON.stringify({text:'Настройки телефона закрыты.',reply_markup:REMOVE_KEYBOARD}),tx.now,row!.id,row!.version,userId]);return result;}
       row!.state.phase=undefined;row!.state.selectedStart=null;row!.state.quote=undefined;row!.state.view='times';await persist();
       const result=await show();
       await tx.query(`INSERT INTO outbox(logical_key,update_id,kind,chat_id,payload,due_at,draft_id,draft_version) SELECT $1,$2,'client_screen',u.telegram_id,$3::jsonb,$4,$5,$6 FROM telegram_users u WHERE u.id=$7`,[`remove:${updateId}`,updateId,JSON.stringify({text:'Выберите другое время кнопкой выше.',reply_markup:REMOVE_KEYBOARD}),tx.now,row!.id,row!.version,userId]);
@@ -170,6 +246,6 @@ export function createClientController(context:Context,owner:Actor){
     if(!meaningful(text))return show('invalid_name','Введите имя одной строкой, от 1 до 80 символов.');
     await tx.query('UPDATE clients SET name=$2,version=version+1 WHERE user_id=$1',[userId,text.trim()]);await onboarding();await persist();return show();
   }
-  async function resumeContact():Promise<CommandResult|null>{await load();if(!active()||row!.state.phase!=='contact')return null;await onboarding();await persist();return show();}
+  async function resumeContact():Promise<CommandResult|null>{await load();if(!active()||row!.state.phase!=='contact')return null;if(row!.state.contactContext==='settings'){row!.state.phase=undefined;row!.state.contactContext=undefined;row!.state.view='settings';}else await onboarding();await persist();return show();}
   return {start,handleClientAction,saveDraftInput,resumeContact,renderClientScreen:renderer};
 }

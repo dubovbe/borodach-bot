@@ -7,6 +7,7 @@ import { Repository } from '../../src/db/repository';
 import { nodeDatabase } from '../../scripts/node-db';
 import type { Command } from '../../src/domain/types';
 import type { Database } from '../../src/db/client';
+import { redeliverOnceOnLockTimeout } from './redelivery';
 const url = testDatabaseUrl();
 const schema = `stage3_${crypto.randomUUID().replaceAll('-', '')}`;
 const scoped = new URL(url);
@@ -59,7 +60,8 @@ it('overlapping independent connections only one succeeds and adjacency works', 
     await admin.query('INSERT INTO assignments(barber_id,service_id) VALUES($1,$2)', [b, sixtyMinuteService]);
     // Moscow 10:00–11:30 versus 11:00–12:00, through independent transaction connections.
     const secondRequest = { ...request(b, '2026-11-06T08:00:00.000Z'), serviceIds: [sixtyMinuteService] };
-    const results = await Promise.all([execute('100', request(), '1'), execute('101', secondRequest, '2')]);
+    const firstRequest=request();
+    const results = await Promise.all([redeliverOnceOnLockTimeout(()=>execute('100', firstRequest, '1')), redeliverOnceOnLockTimeout(()=>execute('101', secondRequest, '2'))]);
     expect(results.map(r => r.status).sort()).toEqual(['pending', 'slot_unavailable']);
     const accepted = results.find(r => r.status === 'pending')!;
     const firstWon = results[0].status === 'pending';
@@ -82,7 +84,8 @@ it('one pending across barbers but two sequential confirmed future visits possib
     expect(confirmed.rows[0].n).toBe(2);
 });
 it('duplicate updates create one visit and exact deadline expiry cleanup persists', async () => {
-    const results = await Promise.all([execute('100', request(), '20'), execute('100', request(), '20')]);
+    const command=request();
+    const results = await Promise.all([redeliverOnceOnLockTimeout(()=>execute('100', command, '20')), redeliverOnceOnLockTimeout(()=>execute('100', command, '20'))]);
     expect(results[0]).toEqual(results[1]);
     expect(results[0].status).toBe('pending');
     const v = results[0].entityId!;

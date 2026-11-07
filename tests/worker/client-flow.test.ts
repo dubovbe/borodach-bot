@@ -6,6 +6,9 @@ import type { Env } from '../../src/env';
 import { Repository as RealRepository } from '../../src/db/repository';
 import { Outbox } from '../../src/notifications/outbox';
 import { clientDatabase } from './client-db';
+import { Client } from '@neondatabase/serverless';
+import { createExecutionContext } from 'cloudflare:test';
+import worker from '../../src/worker';
 afterEach(()=>vi.restoreAllMocks());
 it('private opaque callback enters protected client controller, then best effort ACK', async()=>{
   const execute=vi.fn().mockResolvedValue({status:'screen',nextWake:null});
@@ -33,8 +36,74 @@ async function flow(){
   const button=(label:string)=>{const s=current();const b=s?.reply_markup.inline_keyboard.flat().find((b:any)=>/^\d+$/.test(label)?b.text===label:b.text.includes(label));expect(b,JSON.stringify(s)).toBeTruthy();return b.callback_data;};
   const clickId=async(id:string,actor=100,updateId=update++)=>bot.handleUpdate({update_id:updateId,callback_query:{id:'ack',chat_instance:'private',from:{id:actor,is_bot:false,first_name:'Test'},data:id,message:{message_id:1,date:1,chat:{id:actor,type:'private',first_name:'Test'},text:'Screen'}}});
   const click=async(label:string)=>clickId(button(label));
-  return {...f,bot,message,current,button,clickId,click,schedulerFetch};
+  return {...f,bot,message,current,button,clickId,click,schedulerFetch,bindings};
 }
+it('management entry is reachable before profile and settings phone Back returns to settings',async()=>{
+  const f=await flow();await f.message('/start');await f.click('Настройки');
+  expect(f.current().text).toContain('Напоминание');await f.click('Телефон');
+  expect(f.current().reply_markup.keyboard[0][0].request_contact).toBe(true);
+  await f.message('Назад');expect(f.current().text).toContain('Напоминание');
+  expect(f.visits.size).toBe(0);
+});
+it('real routing keeps preference before first request and permits two-step pending withdrawal after submit',async()=>{
+  const f=await flow();await f.message('/start');await f.click('Настройки');await f.click('5 ч.');expect(f.user('100').reminder_hours).toBe(5);
+  await f.click('К записи');await f.click('Вымышленный мастер');await f.click('Тестовая стрижка');await f.click('Далее');await f.click('6');await f.click('10:00');await f.message('Тест');
+  await f.bot.handleUpdate({update_id:1700,message:{message_id:1,date:1,contact:{phone_number:'79123456789',user_id:100,first_name:'Test'},from:{id:100,is_bot:false,first_name:'Test'},chat:{id:100,type:'private',first_name:'Test'}}});
+  await f.click('Отправить');expect(f.current().text).toContain('Заявка отправлена');await f.click('Мои записи');expect(f.current().text).toContain('Ожидает решения');
+  await f.click('Отозвать');expect([...f.visits.values()][0].status).toBe('pending');const affirmative=f.button('Да, отменить');await f.clickId(affirmative);expect([...f.visits.values()][0].status).toBe('cancelled');await f.clickId(affirmative);expect([...f.visits.values()][0].version).toBe(2);
+});
+it('settings contact resumes without booking slot or name; verified text phone never substitutes contact',async()=>{
+ const f=await flow();await f.message('/start');await f.click('Настройки');await f.click('Телефон');await f.message('+79123456789');expect(f.user('100').verified).toBe(false);
+ await f.bot.handleUpdate({update_id:1800,message:{message_id:1,date:1,contact:{phone_number:'79123456789',user_id:100,first_name:'Test'},from:{id:100,is_bot:false,first_name:'Test'},chat:{id:100,type:'private',first_name:'Test'}}});
+ expect(f.current().text).toContain('Напоминание');expect(f.current().text).toContain('+79123456789');expect(f.visits.size).toBe(0);expect(f.user('100').name).toBe('');
+});
+it('returning from settings into incomplete booking resumes required onboarding before Submit',async()=>{
+ const f=await flow();await f.message('/start');await f.click('Вымышленный мастер');await f.click('Тестовая стрижка');await f.click('Далее');await f.click('6');await f.click('10:00');expect(f.current().text).toContain('Введите');
+ await f.click('Настройки');await f.click('К записи');expect(f.current().text).toContain('Введите');
+ await f.message('Тест');expect(f.current().reply_markup.keyboard[0][0].request_contact).toBe(true);expect(f.visits.size).toBe(0);
+});
+it('stale own confirmation refreshes own list without cancelling the newer visit version',async()=>{
+ const f=await flow(),u=f.user('100');await f.message('/start');const v={id:crypto.randomUUID(),client_id:u.client,barber_id:'00000000-0000-4000-8000-000000000002',status:'confirmed',start_at:'2026-11-07T18:00:00.000Z',end_at:'2026-11-07T18:45:00.000Z',version:1,items:[]};f.visits.set(v.id,v);
+ await f.click('Мои записи');await f.click('Отменить');const yes=f.button('Да, отменить');v.version=2;await f.clickId(yes);expect(v.status).toBe('confirmed');expect(v.version).toBe(2);expect(f.current().text).toContain('Список обновлён');
+});
+it('real settings commit survives failed scheduler arm and same update replay changes the draft once',async()=>{
+ const f=await flow();await f.message('/start');await f.click('Настройки');const cb=f.button('5 ч.');f.schedulerFetch.mockRejectedValueOnce(Error('synthetic arm failure'));
+ await expect(f.clickId(cb,100,1900)).rejects.toThrow('synthetic arm failure');expect(f.user('100').reminder_hours).toBe(5);const version=[...f.drafts.values()][0].version;
+ await f.clickId(cb,100,1900);expect([...f.drafts.values()][0].version).toBe(version);expect(f.user('100').reminder_hours).toBe(5);
+});
+it('real webhook returns 503 on precommit lock failure and exact-update redelivery submits once with usable management',async()=>{
+ const f=await flow();f.user('100').name='Тест';f.user('100').verified=true;
+ await f.message('/start');await f.click('Вымышленный мастер');await f.click('Тестовая стрижка');await f.click('Далее');await f.click('6');await f.click('10:00');
+ const submit=f.button('Отправить'),oldScreen=f.outbox.find(o=>o.kind==='client_screen'&&o.status==='pending'),oldVersion=[...f.drafts.values()][0].version;
+ Object.assign(oldScreen,{status:'leased',claim_token:'previous-claim',lease_until:'2026-11-06T04:00:30.000Z'});
+ let failLock=true;
+ vi.spyOn(Client.prototype,'connect').mockResolvedValue();vi.spyOn(Client.prototype,'end').mockResolvedValue();
+ vi.spyOn(Client.prototype,'query').mockImplementation((async(text:string,values:unknown[]=[])=>{
+  if(text.startsWith('SELECT id FROM shop')){if(failLock){failLock=false;throw Object.assign(Error('synthetic lock timeout'),{code:'55P03'});}return {rows:[{id:1}]};}
+  if(text.startsWith('SELECT clock_timestamp'))return {rows:[{now:new Date(f.now)}]};
+  if(text==='BEGIN'||text==='COMMIT'||text==='ROLLBACK'||text.startsWith('SET LOCAL'))return {rows:[]};
+  return {rows:await f.database.read(sql=>sql.query(text,values))};
+ }) as never);
+ const update={update_id:99001,callback_query:{id:'ack',chat_instance:'private',from:{id:100,is_bot:false,first_name:'Test'},data:submit,message:{message_id:1,date:1,chat:{id:100,type:'private',first_name:'Test'},text:'Screen'}}};
+ const request=()=>new Request('https://test/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':f.bindings.WEBHOOK_SECRET},body:JSON.stringify(update)});
+ expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(503);expect(f.visits.size).toBe(0);expect([...f.drafts.values()][0].version).toBe(oldVersion);expect(oldScreen.claim_token).toBe('previous-claim');
+ expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.visits.size).toBe(1);expect([...f.drafts.values()][0].version).toBe(oldVersion+1);expect(oldScreen.status).toBe('cancelled');expect(oldScreen.claim_token).toBeNull();
+ const management=f.button('Мои записи');expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.visits.size).toBe(1);expect([...f.drafts.values()][0].version).toBe(oldVersion+1);
+ const delivered:any[]=[];await new Outbox(f.database,{send:async d=>{delivered.push(d);return {messageId:'submitted'};}}).deliver(f.now,5);expect(delivered.some(d=>d.payload.reply_markup?.inline_keyboard.flat().some((b:any)=>b.text==='Мои записи'))).toBe(true);
+ await f.clickId(management);expect(f.current().text).toContain('Ожидает решения');
+});
+it('large own-bookings page remains deliverable and preserves all five cancellation buttons',async()=>{
+ const f=await flow(),u=f.user('100');await f.message('/start');
+ for(let n=0;n<5;n++){
+  const id=crypto.randomUUID(),day=String(7+n).padStart(2,'0');
+  f.visits.set(id,{id,client_id:u.client,barber_id:'00000000-0000-4000-8000-000000000002',status:'confirmed',start_at:`2026-11-${day}T10:00:00.000Z`,end_at:`2026-11-${day}T12:00:00.000Z`,version:1,items:Array.from({length:12},(_,i)=>({name:`Услуга ${i+1}: ${'Длинное название '.repeat(5)}`.slice(0,80),priceKopecks:10000,durationMinutes:10}))});
+ }
+ await f.click('Мои записи');expect(f.current().reply_markup.inline_keyboard.flat().filter((b:any)=>b.text.startsWith('Отменить'))).toHaveLength(5);
+ const deliveries:any[]=[];await new Outbox(f.database,{send:async d=>{deliveries.push(d);return {messageId:'large-page'};}}).deliver(f.now,5);
+ const delivered=deliveries.find(d=>d.chatId==='100'&&d.payload.reply_markup?.inline_keyboard.flat().filter((b:any)=>b.text.startsWith('Отменить')).length===5);
+ expect(delivered,'the bookings page must survive the real Outbox delivery validation').toBeTruthy();
+ expect(delivered.payload.text.length).toBeLessThanOrEqual(4096);expect(delivered.payload.text.match(/Мастер:/g)).toHaveLength(5);expect(delivered.payload.text.match(/Подтверждена/g)).toHaveLength(5);expect(delivered.payload.text.match(/МСК/g)).toHaveLength(5);expect([...f.visits.values()].every(v=>v.items.length===12&&v.items.every((i:any)=>i.name.length===80))).toBe(true);
+});
 it('real routing/controller: start, checked multi-services, calendar, time, name/contact, pending, barber confirms exact client details',async()=>{
   const f=await flow();
   await f.message('/start');await f.click('Вымышленный мастер');await f.click('Тестовая стрижка');await f.click('Тестовая борода');
