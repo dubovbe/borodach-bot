@@ -30,7 +30,7 @@ function textPages(text:string):string[]{
 }
 export async function handleAdmin(c:Context,actor:Actor,input:{callbackId?:string;text?:string;contact?:boolean},options:IdentityOptions={}):Promise<CommandResult|null>{
  const {tx,userId,updateId}=c;let cb:Callback|undefined,authorized=false;
- if(input.callbackId){cb=(await tx.query<Callback>('SELECT * FROM callbacks WHERE id::text=$1',[input.callbackId]))[0];if(!cb)return null;if(cb.action.kind==='admin'||cb.action.scope==='admin'){if(cb.user_id!==userId)refuse('forbidden','Кнопка недоступна.');await requireAdmin(c);authorized=true;}}
+ if(input.callbackId){cb=(await tx.query<Callback>('SELECT * FROM callbacks WHERE id::text=$1',[input.callbackId]))[0];if(!cb||cb.action.scope==='staff')return null;if(cb.action.kind==='admin'||cb.action.scope==='admin'){if(cb.user_id!==userId)refuse('forbidden','Кнопка недоступна.');await requireAdmin(c);authorized=true;}}
  if(!authorized){
   const access=(await tx.query<{scope:string|null;admin:boolean}>(`SELECT d.state->>'scope' AS scope,EXISTS(SELECT 1 FROM roles WHERE user_id=$1 AND role='admin') AS admin FROM drafts d WHERE d.user_id=$1`,[userId]))[0];
   if(access?.scope!=='admin')return null;
