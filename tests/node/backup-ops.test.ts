@@ -39,10 +39,39 @@ if(flag('restorefail')){console.error('SENTINEL-provider-password');process.exit
 function result(run:ReturnType<typeof spawnSync>,ok:boolean,code='BACKUP_FAILED'){
  assert.equal(run.error,undefined);assert.equal(run.status,ok?0:1,JSON.stringify((run as typeof run&{diagnostic?:unknown}).diagnostic));assert.equal(run.stderr,'');assert.doesNotMatch(String(run.stdout),/SENTINEL/);const parsed=JSON.parse(String(run.stdout));assert.equal(parsed.ok,ok);if(!ok)assert.equal(parsed.code,code);
 }
+function boundaryDiagnostic(f:ReturnType<typeof fixture>){
+ const script=String.raw`
+ import {lstatSync,realpathSync} from 'node:fs';
+ import {dirname,parse,resolve,join} from 'node:path';
+ import {spawnSync} from 'node:child_process';
+ import {backup,connection} from ${JSON.stringify(new URL('../../scripts/backup-ops.ts',import.meta.url).href)};
+ import {operationLock} from ${JSON.stringify(new URL('../../scripts/operation-lock.ts',import.meta.url).href)};
+ const frames=error=>String(error?.stack??'').split('\n').flatMap(line=>{
+  const file=line.match(/(backup-ops|operation-lock)\.ts:(\d+):\d+/);if(!file)return [];
+  const fn=line.match(/\bat (?:async )?([A-Za-z_$][\w$]*)/),allowed=['fail','connection','canonicalDirectory','checkedFile','configuration','tools','operationLock','versions','inspect','scoped','utility','backup'];
+  return [{file:file[1],phase:fn&&allowed.includes(fn[1])?fn[1]:'callback',line:Number(file[2])}];
+ }).slice(0,6);
+ const normalize=p=>process.platform==='win32'?resolve(p).toLowerCase():resolve(p);
+ const diagnostic={directoryCheck:false,canonicalEqual:false,ancestorReparse:false,ipcAcquired:false,ipcReleased:false,libraryBackup:false,failureFrames:[],nativeStatus:null,nativeError:'none',nativeVersionValid:false};
+ try{diagnostic.canonicalEqual=normalize(process.env.BACKUP_DIR)===normalize(realpathSync(process.env.BACKUP_DIR));
+  for(let p=resolve(process.env.BACKUP_DIR);;p=dirname(p)){if(lstatSync(p).isSymbolicLink())diagnostic.ancestorReparse=true;if(p===parse(p).root)break;}diagnostic.directoryCheck=true;
+ }catch{}
+ try{const scope='stage11-'+connection(process.env.BACKUP_DATABASE_URL).identity+'-public-operation';const release=await operationLock(process.env.BACKUP_DIR,scope);diagnostic.ipcAcquired=true;await release();diagnostic.ipcReleased=true;}catch{}
+ try{await backup(process.env);diagnostic.libraryBackup=true;}catch(error){diagnostic.failureFrames=frames(error);}
+ const nativeEnv={};for(const key of ['PATH','Path','SystemRoot','WINDIR','TEMP','TMP','TMPDIR','LANG','LC_ALL'])if(process.env[key])nativeEnv[key]=process.env[key];
+ Object.assign(nativeEnv,{PGHOST:'localhost',PGPORT:'5432',PGDATABASE:'stage11_fixture_'+'a'.repeat(32),PGUSER:'synthetic',PGPASSWORD:'SENTINEL password',PGSSLMODE:'disable',PGCHANNELBINDING:'prefer',PGCONNECT_TIMEOUT:'5',PGAPPNAME:'stage11-offline-ops'});
+ const native=spawnSync(join(process.env.PG_BIN_DIR,'pg_dump'+(process.platform==='win32'?'.exe':'')),['--version'],{env:nativeEnv,shell:false,windowsHide:true,encoding:'utf8',timeout:5000});
+ diagnostic.nativeStatus=native.status;diagnostic.nativeError=native.error?['ENOENT','EACCES','EPERM','ETIMEDOUT','EINVAL'].includes(native.error.code)?native.error.code:'OTHER':'none';diagnostic.nativeVersionValid=/^pg_dump \(PostgreSQL\) 18\.6\s*$/.test(native.stdout??'');
+ console.log(JSON.stringify(diagnostic));`;
+ const child=spawnSync(process.execPath,['--input-type=module','-e',script],{env:f.env,encoding:'utf8',timeout:20000});
+ // Never forward a diagnostic subprocess stack, environment, paths or provider output.
+ if(child.status!==0||child.stderr)return {diagnosticProcess:false};
+ try{return JSON.parse(child.stdout);}catch{return {diagnosticProcess:false};}
+}
 test('real CLI subprocess scope, credentials, successful bundles, retention and failure age',t=>{
  const f=fixture();try{
  writeFileSync(join(f.output,'unrelated.dump'),'untouched');
- for(let n=0;n<8;n++){const outcome=f.run();if(n===0)t.diagnostic(JSON.stringify(outcome.diagnostic));result(outcome,true);}
+ for(let n=0;n<8;n++){const outcome=f.run();if(n===0){t.diagnostic(JSON.stringify(outcome.diagnostic));if(outcome.status!==0)t.diagnostic(JSON.stringify(boundaryDiagnostic(f)));}result(outcome,true);}
  const manifests=readdirSync(f.output).filter(n=>n.endsWith('.json'));assert.equal(manifests.length,7);assert.equal(readFileSync(join(f.output,'unrelated.dump'),'utf8'),'untouched');
  const before=manifests.map(n=>readFileSync(join(f.output,n),'utf8'));
  const status=JSON.parse(String(f.run('status').stdout));assert.equal(status.available,true);assert.equal(typeof status.ageSeconds,'number');
@@ -154,5 +183,14 @@ test('synthetic fixture canonicalizes temp aliases while production still refuse
   f=fixture(alias);result(f.run(),true);
   const aliasedOutput=join(alias,relative(physical,f.output));assert.equal(realpathSync(aliasedOutput),f.output);const before=readFileSync(join(f.bin,'calls.txt'),'utf8');
   result(f.run('backup',{BACKUP_DIR:aliasedOutput}),false);assert.equal(readFileSync(join(f.bin,'calls.txt'),'utf8'),before);
+  f.env.BACKUP_DIR=aliasedOutput;const diagnostic=boundaryDiagnostic(f);assert.equal(diagnostic.ancestorReparse,true);assert.equal(diagnostic.libraryBackup,false);assert.ok(diagnostic.failureFrames.some((frame:{phase:string})=>frame.phase==='canonicalDirectory'));
  }finally{f?.cleanup();if(process.platform==='win32')rmdirSync(alias);else unlinkSync(alias);rmdirSync(physical);rmdirSync(directory);}
+});
+test('boundary diagnostic maps native entry failure to safe fixed frames and status only',()=>{
+ const f=fixture();try{
+  f.env.PG_BIN_DIR=join(f.bin,'missing-SENTINEL');const diagnostic=boundaryDiagnostic(f);
+  assert.equal(diagnostic.directoryCheck,true);assert.equal(diagnostic.canonicalEqual,true);assert.equal(diagnostic.ancestorReparse,false);assert.equal(diagnostic.ipcAcquired,true);assert.equal(diagnostic.ipcReleased,true);assert.equal(diagnostic.libraryBackup,false);assert.equal(diagnostic.nativeError,'ENOENT');assert.equal(diagnostic.nativeStatus,null);assert.ok(diagnostic.failureFrames.length>0);
+  assert.doesNotMatch(JSON.stringify(diagnostic),/SENTINEL|postgresql:|file:\/\/|[A-Z]:\\/);
+  f.env.PG_BIN_DIR=f.bin;const positive=boundaryDiagnostic(f);assert.equal(positive.libraryBackup,true);assert.equal(positive.nativeVersionValid,true);assert.equal(positive.nativeStatus,0);assert.deepEqual(positive.failureFrames,[]);
+ }finally{f.cleanup();}
 });
