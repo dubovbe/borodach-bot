@@ -1,13 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync,spawn} from 'node:child_process';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,copyFileSync,chmodSync,unlinkSync,existsSync,rmdirSync} from 'node:fs';
-import {join,resolve} from 'node:path';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,copyFileSync,chmodSync,unlinkSync,existsSync,rmdirSync,realpathSync,symlinkSync} from 'node:fs';
+import {join,resolve,relative} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 const root=process.cwd();
-function fixture(){
- const dir=mkdtempSync(join(tmpdir(),'stage11-ops-')),bin=join(dir,'native tools'),output=join(dir,'bundles');mkdirSync(bin);mkdirSync(output);
+function fixture(base=tmpdir()){
+ const original=mkdtempSync(join(base,'stage11-ops-')),dir=realpathSync(original),bin=join(dir,'native tools'),output=join(dir,'bundles');mkdirSync(bin);mkdirSync(output);
+ const normalized=(path:string)=>process.platform==='win32'?resolve(path).toLowerCase():resolve(path);
+ const originalTempCanonical=normalized(original)===normalized(dir);
  const migrations=readdirSync('src/db/schema').filter(n=>/\.sql$/.test(n)).sort().map(name=>({name,checksum:createHash('sha256').update(readFileSync(join('src/db/schema',name))).digest('hex')}));
  writeFileSync(join(bin,'migrations.json'),JSON.stringify(migrations));
  if(process.platform==='win32'){
@@ -27,16 +29,20 @@ if(flag('restorefail')){console.error('SENTINEL-provider-password');process.exit
   for(const name of ['psql','pg_dump','pg_restore']){writeFileSync(join(bin,name),source);chmodSync(join(bin,name),0o755);}
  }
  const env={...process.env,BACKUP_DATABASE_URL:'postgresql://synthetic:SENTINEL%20password@localhost/stage11_fixture_'+'a'.repeat(32)+'?sslmode=disable',RESTORE_DATABASE_URL:'postgresql://synthetic:SENTINEL%20password@localhost/stage11_restore_'+'b'.repeat(32)+'?sslmode=disable',BACKUP_SCHEMA:'public',BACKUP_DIR:output,PG_BIN_DIR:bin,SYNTHETIC_TEST:'true',PGSSLROOTCERT:'SENTINEL-inherited-root',INVITATION_SECRET:'SENTINEL',WEBHOOK_SECRET:'SENTINEL',PGHOSTADDR:'SENTINEL',PGOPTIONS:'SENTINEL',PGSERVICE:'SENTINEL',PGPASSFILE:'SENTINEL',BOT_TOKEN:'SENTINEL',DATABASE_URL:'SENTINEL',NODE_BIN:process.execPath};
- const run=(mode='backup',changes:Record<string,string|undefined>={})=>spawnSync(process.execPath,['scripts/backup-ops.ts',mode],{env:{...env,...changes},encoding:'utf8',timeout:15000});
- return {dir,bin,output,env,run,flag:(name:string)=>writeFileSync(join(bin,name),'yes'),remove:(name:string)=>unlinkSync(join(bin,name)),cleanup:()=>{for(const directory of [bin,output]){for(const name of readdirSync(directory))unlinkSync(join(directory,name));rmdirSync(directory);}rmdirSync(dir);}};
+ const run=(mode='backup',changes:Record<string,string|undefined>={})=>{
+  const outcome=spawnSync(process.execPath,['scripts/backup-ops.ts',mode],{env:{...env,...changes},encoding:'utf8',timeout:15000});
+  const calls=existsSync(join(bin,'calls.txt'))?readFileSync(join(bin,'calls.txt'),'utf8'):'';
+  return Object.assign(outcome,{diagnostic:{originalTempCanonical,nativePhase:calls.includes('--list')?'list':calls.includes('--format=custom')?'dump':calls.includes('--command')?'preflight':calls.includes('--version')?'version':'not-started'}});
+ };
+ return {dir,bin,output,env,run,originalTempCanonical,flag:(name:string)=>writeFileSync(join(bin,name),'yes'),remove:(name:string)=>unlinkSync(join(bin,name)),cleanup:()=>{for(const directory of [bin,output]){for(const name of readdirSync(directory))unlinkSync(join(directory,name));rmdirSync(directory);}rmdirSync(dir);}};
 }
 function result(run:ReturnType<typeof spawnSync>,ok:boolean,code='BACKUP_FAILED'){
- assert.equal(run.error,undefined);assert.equal(run.status,ok?0:1);assert.equal(run.stderr,'');assert.doesNotMatch(String(run.stdout),/SENTINEL/);const parsed=JSON.parse(String(run.stdout));assert.equal(parsed.ok,ok);if(!ok)assert.equal(parsed.code,code);
+ assert.equal(run.error,undefined);assert.equal(run.status,ok?0:1,JSON.stringify((run as typeof run&{diagnostic?:unknown}).diagnostic));assert.equal(run.stderr,'');assert.doesNotMatch(String(run.stdout),/SENTINEL/);const parsed=JSON.parse(String(run.stdout));assert.equal(parsed.ok,ok);if(!ok)assert.equal(parsed.code,code);
 }
-test('real CLI subprocess scope, credentials, successful bundles, retention and failure age',()=>{
+test('real CLI subprocess scope, credentials, successful bundles, retention and failure age',t=>{
  const f=fixture();try{
  writeFileSync(join(f.output,'unrelated.dump'),'untouched');
- for(let n=0;n<8;n++)result(f.run(),true);
+ for(let n=0;n<8;n++){const outcome=f.run();if(n===0)t.diagnostic(JSON.stringify(outcome.diagnostic));result(outcome,true);}
  const manifests=readdirSync(f.output).filter(n=>n.endsWith('.json'));assert.equal(manifests.length,7);assert.equal(readFileSync(join(f.output,'unrelated.dump'),'utf8'),'untouched');
  const before=manifests.map(n=>readFileSync(join(f.output,n),'utf8'));
  const status=JSON.parse(String(f.run('status').stdout));assert.equal(status.available,true);assert.equal(typeof status.ageSeconds,'number');
@@ -139,4 +145,14 @@ test('published backup with failed pruning retains valid age and alerts Node and
   const library=spawnSync(process.execPath,['--input-type=module','-e',`const m=await import(${JSON.stringify(pathToFileURL(resolve('scripts/backup-ops.ts')).href)});const backup=await m.backup(process.env);console.log(JSON.stringify({backup,status:await m.backupStatus(process.env)}));`],{env,encoding:'utf8',timeout:15000});
   assert.equal(library.status,0);assert.equal(library.stderr,'');const parsed=JSON.parse(library.stdout);assert.equal(parsed.backup.backup,true);assert.equal(parsed.backup.retention,false);assert.equal(parsed.status.available,true);assert.equal(typeof parsed.status.ageSeconds,'number');assert.ok(readdirSync(f.output).filter(n=>n.endsWith('.dump.json')).length>=8);
  }finally{f.cleanup();}
+});
+
+test('synthetic fixture canonicalizes temp aliases while production still refuses a supplied junction',()=>{
+ const directory=realpathSync(mkdtempSync(join(tmpdir(),'s11-'))),physical=join(directory,'p'),alias=join(directory,'a');mkdirSync(physical);symlinkSync(physical,alias,process.platform==='win32'?'junction':'dir');
+ let f:ReturnType<typeof fixture>|undefined;
+ try{
+  f=fixture(alias);result(f.run(),true);
+  const aliasedOutput=join(alias,relative(physical,f.output));assert.equal(realpathSync(aliasedOutput),f.output);const before=readFileSync(join(f.bin,'calls.txt'),'utf8');
+  result(f.run('backup',{BACKUP_DIR:aliasedOutput}),false);assert.equal(readFileSync(join(f.bin,'calls.txt'),'utf8'),before);
+ }finally{f?.cleanup();if(process.platform==='win32')rmdirSync(alias);else unlinkSync(alias);rmdirSync(physical);rmdirSync(directory);}
 });
