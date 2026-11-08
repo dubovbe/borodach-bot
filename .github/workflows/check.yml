@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -30,4 +30,29 @@ jobs:
       - run: npm run db:migrate
       - run: npm run db:seed
       - run: npm run test:integration
+      - name: Select matching PostgreSQL 18 client utilities
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+          echo "PG_BIN_DIR=/usr/lib/postgresql/18/bin" >> "$GITHUB_ENV"
+          /usr/lib/postgresql/18/bin/pg_dump --version
+          /usr/lib/postgresql/18/bin/pg_restore --version
+      - name: Offline synthetic PG18 backup and restore
+        run: npm run test:recovery
       - run: npm run build
+  windows-cli:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Native subprocess and PowerShell CLI safety
+        run: npm run test:probe

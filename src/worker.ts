@@ -8,6 +8,27 @@ export { ProbeScheduler } from './jobs/scheduler';
 
 import { CloudflareScheduler } from './jobs/scheduler';
 
+// Count raw UTF-8 stream bytes, independently of Content-Length.
+async function boundedUpdate(request: Request): Promise<Update | undefined> {
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error('invalid_body');
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      length += chunk.value.byteLength;
+      if (length > 64 * 1024) { try { await reader.cancel(); } catch { /* overlimit stays 413 */ } return undefined; }
+      chunks.push(chunk.value);
+    }
+  } finally { reader.releaseLock(); }
+  const body = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length; }
+  return JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body)) as Update;
+}
+
 export default {
   async scheduled(_event: ScheduledController, env: Env): Promise<void> { await new CloudflareScheduler(env.SCHEDULER).ensure(); },
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -20,7 +41,11 @@ export default {
       return new Response('Forbidden', { status: 403 });
     }
     let update: Update;
-    try { update = await request.json<Update>(); }
+    try {
+      const parsed = await boundedUpdate(request);
+      if (parsed === undefined) return new Response('Update too large', { status: 413 });
+      update = parsed;
+    }
     catch { return new Response('Invalid update', { status: 400 }); }
     if (!update || !Number.isSafeInteger(update.update_id)) return new Response('Invalid update', { status: 400 });
     try {

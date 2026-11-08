@@ -61,16 +61,20 @@ export async function loadSchedule(barberId: Id, sql: SqlReader): Promise<WorkSc
     validateSchedule(schedule);
     return schedule;
 }
-export function workBetween(schedule: WorkSchedule, from: Instant, to: Instant): Interval[] {
+function* scheduledWork(schedule: WorkSchedule, from: Instant, to: Instant): Generator<Interval> {
     validateSchedule(schedule);
-    const result: Interval[] = [];
     for (let d = midnight(localDate(from)), end = midnight(localDate(to)); d <= end; d += day) {
         const date = localDate(iso(d));
         const weekday = new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
         for (const w of schedule.exceptions[date] ?? schedule.weekly[weekday] ?? [])
-            result.push({ start: iso(d + w.startMinute * minute), end: iso(d + w.endMinute * minute) });
+            yield { start: iso(d + w.startMinute * minute), end: iso(d + w.endMinute * minute) };
     }
-    return result;
+}
+export function workBetween(schedule: WorkSchedule, from: Instant, to: Instant): Interval[] { return [...scheduledWork(schedule, from, to)]; }
+// Approval needs only the first still-relevant interval, never an expanded calendar of slots.
+export function firstApprovalWork(schedule: WorkSchedule, now: Instant, to: Instant): Interval[] {
+    for (const interval of scheduledWork(schedule, now, to)) if (Date.parse(interval.end) > Date.parse(now)) return [interval];
+    return [];
 }
 export type SlotInput = {
     barberId: Id;
@@ -80,7 +84,7 @@ export type SlotInput = {
     actorMode: 'client' | 'staff';
     excludeVisitId?: Id;
 };
-export function slotsFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, now: Instant, duration: number, schedule: WorkSchedule, busy: Interval[], horizon: number): Interval[] {
+function availabilityFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, now: Instant, duration: number, schedule: WorkSchedule, busy: Interval[], horizon: number, firstPerDay: boolean): Interval[] {
     const from = Date.parse(input.from), to = Date.parse(input.to), n = Date.parse(now);
     if (!Number.isFinite(from) || !Number.isFinite(to) || to < from || to - from > 366 * day)
         throw new DomainError('invalid_range', 'Некорректный диапазон.');
@@ -89,14 +93,15 @@ export function slotsFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, no
     const lower = Math.max(from, n + (input.actorMode === 'client' ? 120 * minute : 0));
     if (lower > upper)
         return [];
-    // Clients need work from now for approval; staff only needs the requested viewing window.
-    const workFrom = input.actorMode === 'client' ? now : iso(lower);
-    const work = workBetween(schedule, workFrom, iso(upper));
-    const deadline = input.actorMode === 'client' ? approvalDeadline(now, work) : null;
+    const work = workBetween(schedule, iso(lower), iso(upper));
+    const deadline = input.actorMode === 'client' ? approvalDeadline(now, firstApprovalWork(schedule, now, iso(upper))) : null;
     if (input.actorMode === 'client' && !deadline)
         return [];
     const slots: Interval[] = [];
+    const found = new Set<string>();
     for (const w of work) {
+        const date = localDate(w.start);
+        if (firstPerDay && found.has(date)) continue;
         const start = Math.max(Date.parse(w.start), lower), end = Date.parse(w.end);
         const base = midnight(localDate(iso(start)));
         for (let s = base + Math.ceil((start - base) / (30 * minute)) * 30 * minute; s <= upper && s + duration * minute <= end; s += 30 * minute) {
@@ -104,9 +109,16 @@ export function slotsFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, no
             if ((input.actorMode === 'client' && Date.parse(deadline!) >= s) || busy.some(b => Date.parse(b.start) < e && Date.parse(b.end) > s))
                 continue;
             slots.push({ start: iso(s), end: iso(e) });
+            if (firstPerDay) { found.add(date); break; }
         }
     }
     return slots;
+}
+export function slotsFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, now: Instant, duration: number, schedule: WorkSchedule, busy: Interval[], horizon: number): Interval[] {
+    return availabilityFor(input, now, duration, schedule, busy, horizon, false);
+}
+export function availableDaysFor(input: Pick<SlotInput, 'from' | 'to' | 'actorMode'>, now: Instant, duration: number, schedule: WorkSchedule, busy: Interval[], horizon: number): string[] {
+    return availabilityFor(input, now, duration, schedule, busy, horizon, true).map(slot => localDate(slot.start));
 }
 export async function busyIntervals(barberId: Id, tx: Tx, excludeVisitId?: Id): Promise<Interval[]> {
     const rows = await tx.query<{
@@ -130,7 +142,7 @@ export async function prepareAvailability(input:SlotInput,tx:Tx){
     }>('SELECT booking_horizon_days FROM settings WHERE shop_id=1', []);
     const busy=await busyIntervals(input.barberId,tx,input.excludeVisitId);
     const horizon=settings[0]?.booking_horizon_days??30;
-    return {tx,barberId:input.barberId,serviceIds:[...input.serviceIds],offer,schedule,horizon,slots:(range:Pick<SlotInput,'from'|'to'|'actorMode'>)=>slotsFor(range,tx.now,offer.durationMinutes,schedule,busy,horizon)};
+    return {tx,barberId:input.barberId,serviceIds:[...input.serviceIds],offer,schedule,horizon,slots:(range:Pick<SlotInput,'from'|'to'|'actorMode'>)=>slotsFor(range,tx.now,offer.durationMinutes,schedule,busy,horizon),availableDays:(range:Pick<SlotInput,'from'|'to'|'actorMode'>)=>availableDaysFor(range,tx.now,offer.durationMinutes,schedule,busy,horizon)};
 }
 export async function listSlots(input: SlotInput, db: Database): Promise<Interval[]> {
     return db.read(async (sql) => {
