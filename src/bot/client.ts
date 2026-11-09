@@ -41,11 +41,11 @@ export function createClientController(context:Context,owner:Actor){
   };
   const button=(text:string,action:Record<string,unknown>):ScreenButton=>({text:text.slice(0,100),action});
   const back=()=>button('Назад',{kind:'back'});
-  const managementButtons=()=>[...(row?.state.adminVisible?[button('Управление',{kind:'admin'})]:[]),button('Мои записи',{kind:'bookings'}),button('Настройки',{kind:'settings'}),...(row?.state.staffVisible?[button('Рабочее место',{kind:'staff',scope:'staff'}),button('Статистика',{kind:'staffReport',scope:'staff'}),button('Записи для переноса',{kind:'staffTransfers'})]:[])];
+  const managementRows=():ScreenButton[][]=>[[button('📋 Мои записи',{kind:'bookings'})],[button('⚙️ Настройки',{kind:'settings'})],...(row?.state.staffVisible?[[button('💈 Рабочее место',{kind:'staff',scope:'staff'})],[button('📊 Статистика',{kind:'staffReport',scope:'staff'})],[button('🔄 Переносы',{kind:'staffTransfers'})]]:[]),...(row?.state.adminVisible?[[button('🛠 Управление',{kind:'admin'})]]:[])];
   const submittedContent=()=>({text:'Заявка отправлена и ожидает решения мастера.',rows:[[button('Новая запись',{kind:'newBooking'})]]});
   const renderer=createScreenRenderer({
     callbacks:async(d,rows)=>{
-      rows=[...rows,managementButtons()];
+      rows=[...rows,...managementRows()];
       if(!rows.length)rows=[[button('Обновить',{kind:'refresh'})]];
       const all=rows.flat().map(b=>({...b,id:crypto.randomUUID()}));
       await tx.query(`INSERT INTO callbacks(id,user_id,draft_id,draft_version,action,expires_at) SELECT x.id,$1,$2,$3,x.action,LEAST($4::timestamptz,$5::timestamptz+interval '30 minutes') FROM jsonb_to_recordset($6::jsonb) AS x(id uuid,action jsonb)`,[userId,d.id,d.version,d.expiresAt,tx.now,JSON.stringify(all)]);
@@ -144,7 +144,7 @@ export function createClientController(context:Context,owner:Actor){
     return {entityId:row!.id,status,nextWake:tx.now};
   };
   const finalizeSubmitted=async()=>{
-    const content=submittedContent(),rows=[...content.rows,managementButtons()];
+    const content=submittedContent(),rows=[...content.rows,...managementRows()];
     const all=rows.flat().map(b=>({...b,id:crypto.randomUUID()}));
     let index=0;const keyboard={inline_keyboard:rows.map(r=>r.map(b=>({text:b.text,callback_data:all[index++].id})))};
     // One post-booking roundtrip: every callback and screen derives its scope from

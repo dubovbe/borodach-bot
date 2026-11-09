@@ -38,6 +38,19 @@ async function flow(){
   const click=async(label:string,actor=100)=>clickId(button(label,actor),actor);
   return {...f,bot,message,current,button,clickId,click,schedulerFetch,bindings};
 }
+it.each([
+ {actor:100,labels:['📋 Мои записи','⚙️ Настройки'],actions:[{kind:'bookings'},{kind:'settings'}]},
+ {actor:200,labels:['📋 Мои записи','⚙️ Настройки','💈 Рабочее место','📊 Статистика','🔄 Переносы'],actions:[{kind:'bookings'},{kind:'settings'},{kind:'staff',scope:'staff'},{kind:'staffReport',scope:'staff'},{kind:'staffTransfers'}]},
+ {actor:201,labels:['📋 Мои записи','⚙️ Настройки','💈 Рабочее место','📊 Статистика','🔄 Переносы','🛠 Управление'],actions:[{kind:'bookings'},{kind:'settings'},{kind:'staff',scope:'staff'},{kind:'staffReport',scope:'staff'},{kind:'staffTransfers'},{kind:'admin'}]},
+])('start exposes readable role-specific navigation before profile for $actor',async({actor,labels,actions})=>{
+ const f=await flow();if(actor===201)f.user('201').roles=['client','admin'];await f.message('/start',actor);
+ const rows=f.current(actor).reply_markup.inline_keyboard.slice(1);
+ expect(rows.map((r:any[])=>r.length)).toEqual(labels.map(()=>1));
+ expect(rows.map((r:any[])=>r[0].text)).toEqual(labels);
+ expect(rows.map((r:any[])=>f.callbacks.get(r[0].callback_data)?.action)).toEqual(actions);
+ for(const row of rows)expect(row[0].callback_data).toMatch(/^[a-f0-9-]{36}$/);
+ expect(f.user(String(actor)).verified).toBe(false);expect(f.visits.size).toBe(0);
+});
 it('management entry is reachable before profile and settings phone Back returns to settings',async()=>{
   const f=await flow();await f.message('/start');await f.click('Настройки');
   expect(f.current().text).toContain('Напоминание');await f.click('Телефон');
@@ -88,8 +101,11 @@ it('real webhook returns 503 on precommit lock failure and exact-update redelive
  const request=()=>new Request('https://test/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':f.bindings.WEBHOOK_SECRET},body:JSON.stringify(update)});
  expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(503);expect(f.visits.size).toBe(0);expect([...f.drafts.values()][0].version).toBe(oldVersion);expect(oldScreen.claim_token).toBe('previous-claim');
  expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.visits.size).toBe(1);expect([...f.drafts.values()][0].version).toBe(oldVersion+1);expect(oldScreen.status).toBe('cancelled');expect(oldScreen.claim_token).toBeNull();
+ const navRows=f.current().reply_markup.inline_keyboard.slice(1);
+ expect(navRows.map((r:any[])=>r.length)).toEqual([1,1]);expect(navRows.map((r:any[])=>r[0].text)).toEqual(['📋 Мои записи','⚙️ Настройки']);
+ expect(navRows.map((r:any[])=>f.callbacks.get(r[0].callback_data)?.action)).toEqual([{kind:'bookings'},{kind:'settings'}]);
  const management=f.button('Мои записи');expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.visits.size).toBe(1);expect([...f.drafts.values()][0].version).toBe(oldVersion+1);
- const delivered:any[]=[];await new Outbox(f.database,{send:async d=>{delivered.push(d);return {messageId:'submitted'};}}).deliver(f.now,5);expect(delivered.some(d=>d.payload.reply_markup?.inline_keyboard.flat().some((b:any)=>b.text==='Мои записи'))).toBe(true);
+ const delivered:any[]=[];await new Outbox(f.database,{send:async d=>{delivered.push(d);return {messageId:'submitted'};}}).deliver(f.now,5);expect(delivered.some(d=>d.payload.reply_markup?.inline_keyboard.flat().some((b:any)=>b.text==='📋 Мои записи'))).toBe(true);
  await f.clickId(management);expect(f.current().text).toContain('Ожидает решения');
 });
 it('large own-bookings page remains deliverable and preserves all five cancellation buttons',async()=>{
@@ -181,7 +197,7 @@ it('real client transfer review and submission deliver independent staff consent
  await f.clickId(accept,200);expect(v.version).toBe(2);
 });
 it('real staff menu selects a resource, saves reason and requires explicit client consent',async()=>{
- const f=await flow(),v=frozenVisit(f);await f.message('/start',200);await f.click('Записи для переноса',200);await f.click('Вымышленный мастер',200);await f.click('6',200);await f.click('07:30',200);
+ const f=await flow(),v=frozenVisit(f);await f.message('/start',200);await f.click('🔄 Переносы',200);await f.click('Вымышленный мастер',200);await f.click('6',200);await f.click('07:30',200);
  expect(f.current(200).text).toContain('причину');await f.message('Bad\nReason',200);expect(f.transfers.size).toBe(0);await f.message('Смена рабочего времени',200);
  expect(f.current(200).text).toContain('Смена рабочего времени');expect(f.current(200).text).toContain('1234 ₽');expect(f.transfers.size).toBe(0);
  await f.click('Отправить предложение',200);expect(v.start_at).toBe('2026-11-07T07:00:00.000Z');
@@ -223,7 +239,7 @@ it('real Worker transfer callback commits before scheduler failure and exact rep
  const callbacks=f.transferCallbacks.size;expect((await worker.fetch(request(),f.bindings,createExecutionContext())).status).toBe(200);expect(f.transfers.size).toBe(1);expect(f.transferCallbacks.size).toBe(callbacks);
 });
 it('a queued staff transfer selection loses private details when resource rights are revoked',async()=>{
- const f=await flow();frozenVisit(f);await f.message('/start',200);await f.click('Записи для переноса',200);f.user('200').roles=[];
+ const f=await flow();frozenVisit(f);await f.message('/start',200);await f.click('🔄 Переносы',200);f.user('200').roles=[];
  const sent:any[]=[];await new Outbox(f.database,{send:async d=>{sent.push(d);return {messageId:'revoked-selection'};}}).deliver(f.now,5);
  expect(sent.some(d=>d.chatId==='200'&&d.payload.text.includes('Выберите запись для предложения'))).toBe(false);
 });
