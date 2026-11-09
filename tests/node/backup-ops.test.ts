@@ -5,9 +5,10 @@ import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,copyFileSyn
 import {join,resolve,relative} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
+import {realpath} from 'node:fs/promises';
 const root=process.cwd();
 function fixture(base=tmpdir()){
- const original=mkdtempSync(join(base,'stage11-ops-')),dir=realpathSync(original),bin=join(dir,'native tools'),output=join(dir,'bundles');mkdirSync(bin);mkdirSync(output);
+ const original=mkdtempSync(join(base,'stage11-ops-')),dir=realpathSync.native(original),bin=join(dir,'native tools'),output=join(dir,'bundles');mkdirSync(bin);mkdirSync(output);
  const normalized=(path:string)=>process.platform==='win32'?resolve(path).toLowerCase():resolve(path);
  const originalTempCanonical=normalized(original)===normalized(dir);
  const migrations=readdirSync('src/db/schema').filter(n=>/\.sql$/.test(n)).sort().map(name=>({name,checksum:createHash('sha256').update(readFileSync(join('src/db/schema',name))).digest('hex')}));
@@ -42,6 +43,7 @@ function result(run:ReturnType<typeof spawnSync>,ok:boolean,code='BACKUP_FAILED'
 function boundaryDiagnostic(f:ReturnType<typeof fixture>){
  const script=String.raw`
  import {lstatSync,realpathSync} from 'node:fs';
+ import {realpath as promisedRealpath} from 'node:fs/promises';
  import {dirname,parse,resolve,join} from 'node:path';
  import {spawnSync} from 'node:child_process';
  import {backup,connection} from ${JSON.stringify(new URL('../../scripts/backup-ops.ts',import.meta.url).href)};
@@ -52,8 +54,8 @@ function boundaryDiagnostic(f:ReturnType<typeof fixture>){
   return [{file:file[1],phase:fn&&allowed.includes(fn[1])?fn[1]:'callback',line:Number(file[2])}];
  }).slice(0,6);
  const normalize=p=>process.platform==='win32'?resolve(p).toLowerCase():resolve(p);
- const diagnostic={directoryCheck:false,canonicalEqual:false,ancestorReparse:false,ipcAcquired:false,ipcReleased:false,libraryBackup:false,failureFrames:[],nativeStatus:null,nativeError:'none',nativeVersionValid:false};
- try{diagnostic.canonicalEqual=normalize(process.env.BACKUP_DIR)===normalize(realpathSync(process.env.BACKUP_DIR));
+ const diagnostic={directoryCheck:false,canonicalEqual:false,canonicalEqualAsync:false,ancestorReparse:false,ipcAcquired:false,ipcReleased:false,libraryBackup:false,failureFrames:[],nativeStatus:null,nativeError:'none',nativeVersionValid:false};
+ try{diagnostic.canonicalEqual=normalize(process.env.BACKUP_DIR)===normalize(realpathSync(process.env.BACKUP_DIR));diagnostic.canonicalEqualAsync=normalize(process.env.BACKUP_DIR)===normalize(await promisedRealpath(process.env.BACKUP_DIR));
   for(let p=resolve(process.env.BACKUP_DIR);;p=dirname(p)){if(lstatSync(p).isSymbolicLink())diagnostic.ancestorReparse=true;if(p===parse(p).root)break;}diagnostic.directoryCheck=true;
  }catch{}
  try{const scope='stage11-'+connection(process.env.BACKUP_DATABASE_URL).identity+'-public-operation';const release=await operationLock(process.env.BACKUP_DIR,scope);diagnostic.ipcAcquired=true;await release();diagnostic.ipcReleased=true;}catch{}
@@ -68,10 +70,11 @@ function boundaryDiagnostic(f:ReturnType<typeof fixture>){
  if(child.status!==0||child.stderr)return {diagnosticProcess:false};
  try{return JSON.parse(child.stdout);}catch{return {diagnosticProcess:false};}
 }
-test('real CLI subprocess scope, credentials, successful bundles, retention and failure age',t=>{
+test('real CLI subprocess scope, credentials, successful bundles, retention and failure age',async t=>{
  const f=fixture();try{
  writeFileSync(join(f.output,'unrelated.dump'),'untouched');
- for(let n=0;n<8;n++){const outcome=f.run();if(n===0){t.diagnostic(JSON.stringify(outcome.diagnostic));if(outcome.status!==0)t.diagnostic(JSON.stringify(boundaryDiagnostic(f)));}result(outcome,true);}
+ const asyncCanonical=await realpath(f.output),nativeSyncCanonical=realpathSync.native(f.output);
+ for(let n=0;n<8;n++){const outcome=f.run();if(n===0){t.diagnostic(JSON.stringify({...outcome.diagnostic,asyncCanonicalEqual:asyncCanonical===f.output,nativeAsyncEqual:asyncCanonical===nativeSyncCanonical}));if(outcome.status!==0)t.diagnostic(JSON.stringify(boundaryDiagnostic(f)));}result(outcome,true);}
  const manifests=readdirSync(f.output).filter(n=>n.endsWith('.json'));assert.equal(manifests.length,7);assert.equal(readFileSync(join(f.output,'unrelated.dump'),'utf8'),'untouched');
  const before=manifests.map(n=>readFileSync(join(f.output,n),'utf8'));
  const status=JSON.parse(String(f.run('status').stdout));assert.equal(status.available,true);assert.equal(typeof status.ageSeconds,'number');
@@ -177,11 +180,11 @@ test('published backup with failed pruning retains valid age and alerts Node and
 });
 
 test('synthetic fixture canonicalizes temp aliases while production still refuses a supplied junction',()=>{
- const directory=realpathSync(mkdtempSync(join(tmpdir(),'s11-'))),physical=join(directory,'p'),alias=join(directory,'a');mkdirSync(physical);symlinkSync(physical,alias,process.platform==='win32'?'junction':'dir');
+ const directory=realpathSync.native(mkdtempSync(join(tmpdir(),'s11-'))),physical=join(directory,'p'),alias=join(directory,'a');mkdirSync(physical);symlinkSync(physical,alias,process.platform==='win32'?'junction':'dir');
  let f:ReturnType<typeof fixture>|undefined;
  try{
   f=fixture(alias);result(f.run(),true);
-  const aliasedOutput=join(alias,relative(physical,f.output));assert.equal(realpathSync(aliasedOutput),f.output);const before=readFileSync(join(f.bin,'calls.txt'),'utf8');
+  const aliasedOutput=join(alias,relative(physical,f.output));assert.equal(realpathSync.native(aliasedOutput),f.output);const before=readFileSync(join(f.bin,'calls.txt'),'utf8');
   result(f.run('backup',{BACKUP_DIR:aliasedOutput}),false);assert.equal(readFileSync(join(f.bin,'calls.txt'),'utf8'),before);
   f.env.BACKUP_DIR=aliasedOutput;const diagnostic=boundaryDiagnostic(f);assert.equal(diagnostic.ancestorReparse,true);assert.equal(diagnostic.libraryBackup,false);assert.ok(diagnostic.failureFrames.some((frame:{phase:string})=>frame.phase==='canonicalDirectory'));
  }finally{f?.cleanup();if(process.platform==='win32')rmdirSync(alias);else unlinkSync(alias);rmdirSync(physical);rmdirSync(directory);}
@@ -192,5 +195,10 @@ test('boundary diagnostic maps native entry failure to safe fixed frames and sta
   assert.equal(diagnostic.directoryCheck,true);assert.equal(diagnostic.canonicalEqual,true);assert.equal(diagnostic.ancestorReparse,false);assert.equal(diagnostic.ipcAcquired,true);assert.equal(diagnostic.ipcReleased,true);assert.equal(diagnostic.libraryBackup,false);assert.equal(diagnostic.nativeError,'ENOENT');assert.equal(diagnostic.nativeStatus,null);assert.ok(diagnostic.failureFrames.length>0);
   assert.doesNotMatch(JSON.stringify(diagnostic),/SENTINEL|postgresql:|file:\/\/|[A-Z]:\\/);
   f.env.PG_BIN_DIR=f.bin;const positive=boundaryDiagnostic(f);assert.equal(positive.libraryBackup,true);assert.equal(positive.nativeVersionValid,true);assert.equal(positive.nativeStatus,0);assert.deepEqual(positive.failureFrames,[]);
+ }finally{f.cleanup();}
+});
+test('synthetic fixture uses the same native canonical path as the asynchronous production guard',async()=>{
+ const f=fixture();try{
+  const promised=await realpath(f.output);assert.equal(promised,realpathSync.native(f.output));assert.equal(f.output,promised);
  }finally{f.cleanup();}
 });
