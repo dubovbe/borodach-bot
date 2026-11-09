@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Бородач · два варианта меню</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f1;color:#242b2c;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}button,select{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #c17128;outline-offset:3px}main{max-width:1060px;margin:auto;padding:34px 24px 40px}.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#526966;font-weight:650}h1{font-size:30px;line-height:1.2;letter-spacing:-.035em;margin:8px 0 12px}p{margin:0}.intro{max-width:740px;color:#596261}.toolbar{display:flex;flex-wrap:wrap;gap:18px 28px;margin:25px 0 28px;padding:17px 0;border-block:1px solid #d9dfdb}.field{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.field-label{font-size:13px;color:#596261}.seg{display:flex;flex-wrap:wrap;gap:4px}.seg button{background:transparent;border:1px solid #d1d8d3;border-radius:7px;padding:6px 11px;font-size:13px;color:#3b4744}.seg button[aria-pressed=true]{background:#234d43;color:#fff;border-color:#234d43}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:42px}.option{min-width:0}.option-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.letter{display:grid;place-items:center;background:#e0e7df;width:34px;height:34px;flex-shrink:0;border-radius:8px;font-size:18px;font-weight:650}.option h2{font-size:19px;line-height:1.25;margin:0 0 5px}.option-head p{font-size:13px;color:#5c6662}.phone{width:340px;max-width:100%;margin:0 auto;border:6px solid #252b2d;border-radius:30px;overflow:hidden;background:#0e1621;color:#e3eaf0;box-shadow:0 14px 30px #1d332414;font-size:16px;line-height:1.4}.phone.large{font-size:20px}.statusbar{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 4px;font-size:11px;color:#d0d9df}.phone-head{display:flex;align-items:center;gap:9px;background:#17212b;padding:9px 13px 13px;border-bottom:1px solid #25323d}.avatar{width:35px;height:35px;border-radius:50%;background:#3a6770;display:grid;place-items:center;font-size:20px}.phone-title{font-size:15px;font-weight:650}.online{font-size:11px;color:#8fadb9}.chat{min-height:540px;padding:16px 10px 14px;background:radial-gradient(ellipse at 20% 0%,#1d333839,transparent 70%),#0e1621}.date{width:max-content;margin:0 auto 14px;padding:3px 9px;border-radius:10px;background:#263542;font-size:10px;color:#aebbc5}.bubble{background:#182531;border-radius:12px 12px 12px 3px;padding:12px 13px;margin-bottom:7px;white-space:pre-line}.bubble strong{font-weight:600}.bubble small{font-size:.8em;color:#a4b8c5}.keys{display:grid;gap:5px;margin-bottom:10px}.keyrow{display:flex;gap:5px}.tg-button{display:flex;align-items:center;justify-content:center;min-width:0;width:100%;min-height:44px;padding:9px 5px;border:0;border-radius:7px;background:#213c4c;color:#d1ebf7;font:inherit;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tg-button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.tg-button:hover{background:#2b4b60}.tg-button:active{background:#335d74}.section-label{font-size:10px;letter-spacing:.06em;color:#7997a8;margin:14px 2px 6px;text-transform:uppercase}.composer{display:flex;align-items:center;gap:10px;background:#18232e;padding:13px 14px;color:#a3b3bf;font-size:15px}.composer span{flex:1;background:#111d28;border-radius:16px;padding:7px 11px;color:#6f8798;font-size:12px}.note{max-width:340px;margin:14px auto 0;font-size:13px;color:#5c6662;min-height:56px}.pick{display:block;width:100%;max-width:340px;margin:14px auto 0;border:1px solid #afbbb2;border-radius:9px;background:#fff;padding:11px 14px;color:#24463b;font-weight:600}.pick[aria-pressed=true]{background:#234d43;color:#fff;border-color:#234d43}.selection{margin:25px 0 0;padding:13px 16px;background:#e7ece5;border-radius:9px;color:#355143;font-size:14px}.details{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:28px;border-top:1px solid #d9dfdb;padding-top:22px}.details h3{font-size:14px;margin:0 0 7px}.details p{font-size:13px;color:#5c6662}.references{margin-top:23px;font-size:12px;color:#707873}.references a{color:#315f55}.plain-icon{font-size:.8em;opacity:.8}@media(max-width:760px){main{padding:22px 14px}.comparison{grid-template-columns:1fr;gap:32px}.details{grid-template-columns:1fr;gap:16px}.toolbar{gap:14px}h1{font-size:26px}.phone{width:340px}.option-head{max-width:340px;margin-inline:auto}}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">Бородач · обсуждение интерфейса</div>
+<h1>Как удобнее расположить кнопки?</h1>
+<p class="intro">Одинаковые действия — две структуры меню. Попробуй открыть рабочее место и вернуться назад. Переключение роли показывает, какие пункты увидит каждый аккаунт.</p>
+<div class="toolbar">
+ <div class="field"><span class="field-label">Роль</span><div class="seg" id="roles" role="group" aria-label="Роль пользователя"><button data-role="client" aria-pressed="false">Клиент</button><button data-role="barber" aria-pressed="true">Мастер · аккаунт 2</button><button data-role="admin" aria-pressed="false">Админ · аккаунт 1</button></div></div>
+ <div class="field"><span class="field-label">Текст</span><div class="seg" id="sizes" role="group" aria-label="Размер текста в макете"><button data-size="normal" aria-pressed="true">Обычный</button><button data-size="large" aria-pressed="false">Крупнее</button></div></div>
+</div>
+<div class="comparison">
+ <section class="option" aria-labelledby="heading-a"><div class="option-head"><div class="letter">A</div><div><h2 id="heading-a">Всё под рукой</h2><p>Исправляем ряды и подписи текущего меню.</p></div></div><div class="phone" id="phone-a"><div class="statusbar"><span>22:00</span><span>●●● ▰</span></div><div class="phone-head"><div class="avatar">💈</div><div><div class="phone-title">Бородач — тест</div><div class="online">бот</div></div></div><div class="chat" id="chat-a"></div><div class="composer">＋ <span>Сообщение</span>◉</div></div><p class="note">Все привычные пункты видны сразу. Статистика и переносы доступны одним нажатием.</p><button class="pick option" data-choice="a" id="pick-a" aria-pressed="false" onclick="choose('a',this)">Мне ближе вариант A</button></section>
+ <section class="option" aria-labelledby="heading-b"><div class="option-head"><div class="letter">B</div><div><h2 id="heading-b">По разделам</h2><p>Рабочие действия собраны внутри кабинета.</p></div></div><div class="phone" id="phone-b"><div class="statusbar"><span>22:00</span><span>●●● ▰</span></div><div class="phone-head"><div class="avatar">💈</div><div><div class="phone-title">Бородач — тест</div><div class="online">бот</div></div></div><div class="chat" id="chat-b"></div><div class="composer">＋ <span>Сообщение</span>◉</div></div><p class="note">Общее меню короче. Статистика и переносы открываются через рабочее место.</p><button class="pick option" data-choice="b" id="pick-b" aria-pressed="false" onclick="choose('b',this)">Мне ближе вариант B</button></section>
+</div>
+<p class="selection" id="selection" aria-live="polite">Можно нажимать кнопки в обоих телефонах. Для выбора варианта используй кнопку под ним.</p>
+<div class="details"><div><h3>Что показываем</h3><p>Обычные эмодзи рядом с текстом, максимум две короткие кнопки в ряду, длинные действия на всю ширину. В календаре и времени останутся компактные цифры.</p></div><div><h3>Что важно учесть</h3><p>Это макет, он не создаёт записи. Размер шрифта и тема задаются Telegram: переключатель только помогает оценить читаемость. Финальный вид и эмодзи проверим на твоём iPhone.</p></div></div>
+<p class="references">Референсы: <a href="https://github.com/alextselegidis/easyappointments" target="_blank" rel="noopener noreferrer">Easy!Appointments</a> · <a href="https://github.com/Tishka17/aiogram_dialog" target="_blank" rel="noopener noreferrer">aiogram-dialog</a> · <a href="https://github.com/noXplode/aiogram_calendar" target="_blank" rel="noopener noreferrer">aiogram_calendar</a>. Это сравнение раскладки, а не выбор отдельного приложения.</p>
+</main>
+<script>
+const state={role:'barber',large:false,views:{a:'home',b:'home'}};
+const el=id=>document.getElementById(id);
+function key(text,action){return {text,action};}
+function show(which){
+ const host=el('chat-'+which);host.replaceChildren();
+ const date=document.createElement('div');date.className='date';date.textContent='Пример навигации';host.append(date);
+ const view=state.views[which],staff=state.role!=='client';let title='',body='',rows=[],section='';
+ if(view==='home'){
+  title='Выберите мастера';body='Время записи показываем по Москве.';rows=[[key('Вымышленный мастер','services')]];section='Меню';
+ }else if(view==='staff'){
+  title='💈 Рабочее место';body='Записи и заявки ваших клиентов.';rows=[[key('📅 Сегодня','day'),key('🗓 Неделя','week')],[key('📆 Выбрать день','day')],[key('📥 Заявки','pending')],[key('✍️ Записать клиента','manual')],[key('📊 Статистика','report')],...(which==='b'?[[key('🔄 Переносы','transfers')]]:[]),[key('⬅️ Главное меню','home')]];
+ }else if(view==='report'){
+  title='📊 Статистика';body='Выберите период отчёта.';rows=[[key('Сегодня','period'),key('Неделя','period')],[key('За период','period')],[key('⬅️ Назад',which==='b'&&staff?'staff':'home')]];
+ }else if(view==='settings'){
+  title='⚙️ Настройки';body='Телефон и время напоминания.';rows=[[key('📱 Телефон','phone')],[key('🔔 Напоминания','reminder')],[key('⬅️ Главное меню','home')]];
+ }else if(view==='bookings'){
+  title='📋 Мои записи';body='Здесь будут ваши личные записи.';rows=[[key('⬅️ Главное меню','home')]];
+ }else if(view==='transfers'){
+  title='🔄 Переносы';body='Выберите запись для предложения переноса.';rows=[[key('⬅️ Назад',which==='b'?'staff':'home')]];
+ }else if(view==='admin'){
+  title='🛠 Управление';body='Услуги, мастера и рабочие графики.';rows=[[key('✂️ Услуги','catalog'),key('🏷 Ранги','ranks')],[key('💈 Мастера','masters')],[key('⬅️ Главное меню','home')]];
+ }else if(view==='services'){
+  title='Выберите услуги';body='Мастер: Вымышленный мастер';rows=[[key('✂️ Стрижка · 1500 ₽','selected')],[key('🧔 Борода · 800 ₽','selected')],[key('⬅️ Назад','home')]];
+ }else{
+  title={day:'📅 Записи на день',week:'🗓 Записи на неделю',pending:'📥 Заявки',manual:'✍️ Ручная запись',period:'📊 Отчёт',phone:'📱 Телефон',reminder:'🔔 Напоминания',catalog:'✂️ Услуги',ranks:'🏷 Ранги',masters:'💈 Мастера',selected:'✅ Услуга выбрана'}[view]||'Раздел';body='';rows=[[key('⬅️ Назад',staff&&['day','week','pending','manual'].includes(view)?'staff':'home')]];
+ }
+ const bubble=document.createElement('div');bubble.className='bubble';const strong=document.createElement('strong');strong.textContent=title;bubble.append(strong);if(body){bubble.append(document.createTextNode('\n'+body));}host.append(bubble);
+ appendRows(host,rows,which);
+ if(section){const label=document.createElement('div');label.className='section-label';label.textContent=section;host.append(label);
+  const nav=[[key('📋 Мои записи','bookings')],[key('⚙️ Настройки','settings')]];
+  if(staff)nav.push([key('💈 Рабочее место','staff')]);
+  if(staff&&which==='a')nav.push([key('📊 Статистика','report')],[key('🔄 Переносы','transfers')]);
+  if(state.role==='admin')nav.push([key('🛠 Управление','admin')]);
+  appendRows(host,nav,which);
+ }
+ el('phone-'+which).classList.toggle('large',state.large);
+}
+function appendRows(host,rows,which){const group=document.createElement('div');group.className='keys';for(const row of rows){const line=document.createElement('div');line.className='keyrow';for(const item of row){const b=document.createElement('button');b.className='tg-button';const text=document.createElement('span');text.textContent=item.text;b.append(text);b.addEventListener('click',()=>{state.views[which]=item.action;show(which);});line.append(b);}group.append(line);}host.append(group);}
+function render(){show('a');show('b');}
+function choose(which,button){for(const id of ['a','b'])el('pick-'+id).setAttribute('aria-pressed',String(id===which));el('selection').textContent='Выбран вариант '+which.toUpperCase()+'. Напиши в чате, что нравится и что изменить.';if(typeof window.toggleSelect==='function'&&window.selectedChoice!==which)window.toggleSelect(button);}
+for(const b of el('roles').querySelectorAll('button'))b.addEventListener('click',()=>{state.role=b.dataset.role;state.views={a:'home',b:'home'};for(const x of el('roles').querySelectorAll('button'))x.setAttribute('aria-pressed',String(x===b));render();});
+for(const b of el('sizes').querySelectorAll('button'))b.addEventListener('click',()=>{state.large=b.dataset.size==='large';for(const x of el('sizes').querySelectorAll('button'))x.setAttribute('aria-pressed',String(x===b));render();});
+render();
+</script>
+</body></html>
