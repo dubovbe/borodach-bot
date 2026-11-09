@@ -9,7 +9,7 @@ export function transferDeadline(input:{initiator:'client'|'staff';now:Instant;o
 import { DomainError,type TransferCommand,type CommandResult,type OfferItem } from '../domain/types';
 import type { Context } from './service';
 import {nextDue} from './service';
-import {busyIntervals,loadSchedule,localDate,workBetween} from '../schedule/service';
+import {busyIntervals,loadSchedule,localDate,workBetween,firstApprovalWork} from '../schedule/service';
 import {reconcileReminders} from '../notifications/reminders';
 import type {Tx} from '../db/client';
 const stamp=(v:Date|string)=>new Date(v).toISOString();
@@ -50,21 +50,26 @@ export async function prepareTransferAvailability(c:Context,visitId:string,expec
  const duration=frozenDuration(v),schedule=await loadSchedule(v.barber_id,c.tx);
  const settings=(await c.tx.query<{booking_horizon_days:number}>('SELECT booking_horizon_days FROM settings WHERE shop_id=1',[]))[0];
  const busy=await busyIntervals(v.barber_id,c.tx,v.id),horizon=settings?.booking_horizon_days??30;
- const slots=(from:string,to:string)=>{
+ const slots=(from:string,to:string,firstPerDay=false)=>{
   const n=Date.parse(c.tx.now),lo=Date.parse(from),hi=Date.parse(to);
   if(!Number.isFinite(lo)||!Number.isFinite(hi)||hi<lo||hi-lo>366*86400000)deny('invalid_range');
   const upper=side==='client'?Math.min(hi,Date.parse(`${localDate(c.tx.now)}T00:00:00+03:00`)+(horizon+1)*86400000-1):hi;
   const lower=Math.max(lo,n+(side==='client'?7200000:1));if(lower>upper)return [];
   const result:Array<{start:string;end:string;deadline:string}>=[];
-  const work=workBetween(schedule,c.tx.now,new Date(Math.max(upper,Date.parse(stamp(v.start_at)))).toISOString());
-  for(const w of work){let s=Math.ceil(Math.max(Date.parse(w.start),lower)/1800000)*1800000;const end=Date.parse(w.end);
+  // Staff approval uses wall time; clients need only work up to this candidate window.
+  const work=workBetween(schedule,new Date(lower).toISOString(),new Date(upper).toISOString());
+  const approvalWork=side==='client'?firstApprovalWork(schedule,c.tx.now,new Date(upper).toISOString()):[];
+  const found=new Set<string>();
+  for(const w of work){
+   const date=localDate(w.start);if(firstPerDay&&found.has(date))continue;
+   let s=Math.ceil(Math.max(Date.parse(w.start),lower)/1800000)*1800000;const end=Date.parse(w.end);
    for(;s<=upper&&s+duration*60000<=end;s+=1800000){const e=s+duration*60000;if(s===Date.parse(stamp(v.start_at))||busy.some(b=>Date.parse(b.start)<e&&Date.parse(b.end)>s))continue;
-    const start=new Date(s).toISOString(),deadline=transferDeadline({initiator:side,now:c.tx.now,oldStart:stamp(v.start_at),newStart:start,work});
-    if(deadline)result.push({start,end:new Date(e).toISOString(),deadline});
+    const start=new Date(s).toISOString(),deadline=transferDeadline({initiator:side,now:c.tx.now,oldStart:stamp(v.start_at),newStart:start,work:approvalWork});
+    if(deadline){result.push({start,end:new Date(e).toISOString(),deadline});if(firstPerDay){found.add(date);break;}}
    }
   }return result;
  };
- return {visit:v,duration,horizon,slots};
+ return {visit:v,duration,horizon,slots,availableDays:(from:string,to:string)=>slots(from,to,true).map(slot=>localDate(slot.start))};
 }
 export async function executeTransfer(c:Context,command:TransferCommand):Promise<CommandResult>{
  if(command.kind==='requestTransfer'||command.kind==='proposeTransfer'){

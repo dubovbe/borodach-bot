@@ -131,11 +131,11 @@ export async function handleStaff(c:Context,actor:Actor,input:{callbackId?:strin
  }
  const historicalScreen=s.view==='report'||s.reportFilter===true||s.view==='input'&&s.input==='period';
  if(!historicalScreen)await staffAuthority(c,s.barberId);
- let manualSlots:{start:string;end:string}[]=[];
+ let manualSlots:{start:string;end:string}[]=[],manualDays:string[]=[];
  if(s.view==='calendar'||s.view==='times'){
   try{
    await selected();const range=s.view==='calendar'?staffMonthWindow(s.month):{from:`${s.day}T00:00:00+03:00`,to:`${s.day}T23:59:59.999+03:00`};
-   const input={barberId:s.barberId!,serviceIds:s.services,...range,actorMode:'staff' as const},data=await prepareAvailability(input,tx);manualSlots=data.slots(input);
+   const input={barberId:s.barberId!,serviceIds:s.services,...range,actorMode:'staff' as const},data=await prepareAvailability(input,tx);if(s.view==='calendar')manualDays=data.availableDays(input);else manualSlots=data.slots(input);
   }catch(error){recoverManual(error);}
  }
  let text='',rows:ScreenButton[][]=[],displayed:Visit[]=[];
@@ -166,7 +166,7 @@ export async function handleStaff(c:Context,actor:Actor,input:{callbackId?:strin
  }else if(s.view==='calendar'||s.view==='times'){
   const slots=manualSlots;
   if(s.view==='calendar'){
-   text=`Выберите дату: ${s.month}`;const cal=calendarMonth(s.month,new Set(slots.map(x=>localDate(x.start))));
+   text=`Выберите дату: ${s.month}`;const cal=calendarMonth(s.month,new Set(manualDays));
    for(let n=0;n<cal.days.length;n+=7)rows.push(cal.days.slice(n,n+7).map(d=>b(d.enabled?d.label:'·',d.enabled?{kind:'day',day:d.date}:{kind:'noop'})));
    rows.push([b('‹',{kind:'month',month:cal.previous}),b('›',{kind:'month',month:cal.next})],back);
   }else{text=`Выберите время: ${s.day} (МСК)`;rows=slots.slice(s.page*5,s.page*5+5).map(slot=>[b(new Date(slot.start).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}),{kind:'time',start:slot.start})]);if(s.page)rows.push([b('‹',{kind:'page',page:s.page-1})]);if(slots.length>s.page*5+5)rows.push([b('›',{kind:'page',page:s.page+1})]);rows.push([b('Другой день',{kind:'manualCalendar'})],back);}

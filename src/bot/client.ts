@@ -4,6 +4,7 @@ import { DomainError, type Actor, type CommandResult, type Draft, type Id } from
 import { executeBooking, type Context } from '../booking/service';
 import { reviewedQuote } from '../booking/quote';
 import { prepareAvailability, localDate } from '../schedule/service';
+import { staffMonthWindow } from '../reports/input';
 import { hashToken, isMeaningfulName as meaningful } from '../identity/service';
 import { calendarMonth, createScreenRenderer, type ClientView, type ScreenButton, CONTACT_TEXT, REMOVE_KEYBOARD } from './screens';
 import { queueStaffDecision, staffVisit } from './staff';
@@ -70,7 +71,7 @@ export function createClientController(context:Context,owner:Actor){
           return {text:`Проверьте перенос.\nБыло: ${new Date(d.visit.start_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)\nНовое время: ${new Date(t.start!).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)\n${clip(d.visit.items.map(i=>i.name).join(', '))}\nСтоимость: ${d.visit.items.reduce((n,i)=>n+i.priceKopecks,0)/100} ₽\nДлительность: ${d.duration} мин.\nСогласие до: ${new Date(slot.deadline).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} (МСК)${t.reason?'\nПричина: '+t.reason:''}`,rows:[[button(t.side==='client'?'Отправить запрос переноса':'Отправить предложение',{kind:'transferSubmit'})],[button('Назад',{kind:'transferBack'})]]};
         }
         if(view==='transferCalendar'){
-          const from=`${s.month}-01T00:00:00+03:00`,to=new Date(Date.parse(from)+32*86400000).toISOString(),calendar=calendarMonth(s.month,new Set(d.slots(from,to).map(x=>localDate(x.start))));
+          const {from,to}=staffMonthWindow(s.month),calendar=calendarMonth(s.month,new Set(d.availableDays(from,to)));
           const rows:ScreenButton[][]=[];for(let i=0;i<calendar.days.length;i+=7)rows.push(calendar.days.slice(i,i+7).map(day=>button(day.enabled?day.label:`·${day.label}`,day.enabled?{kind:'transferDay',day:day.date}:{kind:'noop'})));
           const nav:ScreenButton[]=[];if(calendar.previous>=localDate(tx.now).slice(0,7))nav.push(button('‹',{kind:'transferMonth',month:calendar.previous}));
           const last=localDate(new Date(Date.parse(tx.now)+d.horizon*86400000).toISOString()).slice(0,7);if(t.side==='staff'||calendar.next<=last)nav.push(button('›',{kind:'transferMonth',month:calendar.next}));
@@ -114,7 +115,7 @@ export function createClientController(context:Context,owner:Actor){
       if(view==='calendar'||view==='times'){
         const d=await data();
         if(view==='calendar'){
-          const calendar=calendarMonth(s.month,new Set(d.slots({from:`${s.month}-01T00:00:00+03:00`,to:new Date(Date.parse(`${s.month}-01T00:00:00+03:00`)+32*86400000).toISOString(),actorMode:'client'}).map(i=>localDate(i.start))));
+          const calendar=calendarMonth(s.month,new Set(d.availableDays({...staffMonthWindow(s.month),actorMode:'client'})));
           const days=calendar.days.map(day=>button(day.enabled?day.label:`·${day.label}`,day.enabled?{kind:'day',day:day.date}:{kind:'noop'}));
           const rows:ScreenButton[][]=[];for(let i=0;i<days.length;i+=7)rows.push(days.slice(i,i+7));
           const lastMonth=localDate(new Date(Date.parse(tx.now)+d.horizon*86400000).toISOString()).slice(0,7);

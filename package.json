@@ -17,6 +17,10 @@
     "test:probe": "node --test tests/node/*.test.ts",
     "test:worker": "vitest run",
     "build": "wrangler deploy --dry-run --outdir dist",
+    "ops:backup": "node scripts/backup-ops.ts backup",
+    "ops:restore": "node scripts/backup-ops.ts restore",
+    "ops:status": "node scripts/backup-ops.ts status",
+    "test:recovery": "node scripts/recovery-check.ts",
     "probe:neon": "node --env-file=.env scripts/probe-neon.ts"
   },
   "dependencies": {
