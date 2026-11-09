@@ -139,7 +139,7 @@ it('admin real SQL wizard reviews service creation and saves once through opaque
  const run=(command:Command)=>execute('201',command);
  const current=async()=>{const row=(await sql.query("SELECT payload FROM outbox WHERE kind='client_screen' AND chat_id=201 AND status='pending' ORDER BY due_at,id LIMIT 1")).rows[0];expect(row).toBeDefined();return row.payload;};
  const click=async(label:string)=>{const screen=await current(),button=screen.reply_markup.inline_keyboard.flat().find((b:{text:string})=>b.text===label);expect(button).toBeDefined();return run({kind:'clientAction',callbackId:button.callback_data});};
- await run({kind:'start',payload:null});await click('Управление');await click('Услуги');await click('Создать');await run({kind:'saveDraftInput',text:'SQL reviewed service'});
+ await run({kind:'start',payload:null});await click('🛠 Управление');await click('Услуги');await click('Создать');await run({kind:'saveDraftInput',text:'SQL reviewed service'});
  expect((await sql.query("SELECT id FROM services WHERE name='SQL reviewed service'")).rows).toHaveLength(0);expect((await current()).text).toContain('SQL reviewed service');
  const screen=await current(),callbackId=screen.reply_markup.inline_keyboard.flat().find((b:{text:string})=>b.text==='Подтвердить').callback_data;
  expect((await run({kind:'clientAction',callbackId})).status).toBe('saved');expect((await run({kind:'clientAction',callbackId})).status).toBe('stale_callback');expect((await sql.query("SELECT id FROM services WHERE name='SQL reviewed service'")).rows).toHaveLength(1);
@@ -150,7 +150,7 @@ async function recoveryWizard(){
  const current=async()=>{const row=(await sql.query("SELECT payload FROM outbox WHERE kind='client_screen' AND chat_id=201 AND status='pending' ORDER BY due_at,id LIMIT 1")).rows[0];expect(row).toBeDefined();return row.payload;};
  const button=async(label:string)=>{const screen=await current(),b=screen.reply_markup.inline_keyboard.flat().find((b:{text:string})=>b.text===label||b.text.includes(label));expect(b).toBeDefined();return b.callback_data as string;};
  const click=async(label:string)=>run({kind:'clientAction',callbackId:await button(label)});
- await run({kind:'start',payload:null});await click('Управление');return {run,current,button,click};
+ await run({kind:'start',payload:null});await click('🛠 Управление');return {run,current,button,click};
 }
 it('admin review recovery rebases a concurrent owner change before first tariff review',async()=>{
  const f=await recoveryWizard();await f.click('Ранги');await f.click('Тестовый ранг');await f.click('Услуги и тарифы');await f.click('Тестовая стрижка');await f.click('Задать тариф');await f.run({kind:'saveDraftInput',text:'1700,12'});

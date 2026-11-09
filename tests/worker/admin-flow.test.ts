@@ -5,7 +5,11 @@ it('admin menu is reachable from private start and a foreign actor cannot use it
  const f=clientDatabase();f.user('201').roles=['client','admin'];const repo=new Repository(f.database);
  await repo.execute({telegramId:'201'},{kind:'start',payload:null},'9900');
  const screen=f.outbox.find(o=>o.kind==='client_screen'&&o.status==='pending');
- const button=screen.payload.reply_markup.inline_keyboard.flat().find((b:any)=>b.text==='Управление');expect(button).toBeDefined();
+ const rows=screen.payload.reply_markup.inline_keyboard.slice(1);
+ expect(rows.map((r:any[])=>r.length)).toEqual([1,1,1,1,1,1]);
+ expect(rows.map((r:any[])=>r[0].text)).toEqual(['📋 Мои записи','⚙️ Настройки','💈 Рабочее место','📊 Статистика','🔄 Переносы','🛠 Управление']);
+ expect(rows.map((r:any[])=>f.callbacks.get(r[0].callback_data)?.action)).toEqual([{kind:'bookings'},{kind:'settings'},{kind:'staff',scope:'staff'},{kind:'staffReport',scope:'staff'},{kind:'staffTransfers'},{kind:'admin'}]);
+ const button=screen.payload.reply_markup.inline_keyboard.flat().find((b:any)=>b.text==='🛠 Управление');expect(button).toBeDefined();
  expect((await repo.execute({telegramId:'100'},{kind:'clientAction',callbackId:button.callback_data},'9901')).status).toBe('forbidden');
  expect((await repo.execute({telegramId:'201'},{kind:'clientAction',callbackId:button.callback_data},'9902')).status).toBe('admin_screen');
  expect(f.outbox.find(o=>o.kind==='client_screen'&&o.status==='pending').payload.text).toContain('Управление');

@@ -139,9 +139,9 @@ export async function handleStaff(c:Context,actor:Actor,input:{callbackId?:strin
   }catch(error){recoverManual(error);}
  }
  let text='',rows:ScreenButton[][]=[],displayed:Visit[]=[];
- const back=[b('К рабочему месту',{kind:'home'})];
+ const back=[b('⬅️ К рабочему месту',{kind:'home'})];
  if(s.view==='home'){
-  text='Рабочее место';rows=[[b('Сегодня',{kind:'today'}),b('День',{kind:'date'}),b('Неделя',{kind:'week'})],[b('Ожидающие заявки',{kind:'pending'})],[b('Ручная запись',{kind:'manual'})],[b('Статистика',{kind:'report'})]];
+  text='Рабочее место';rows=[[b('📅 Сегодня',{kind:'today'}),b('🗓 Неделя',{kind:'week'})],[b('📆 Выбрать день',{kind:'date'})],[b('📥 Заявки',{kind:'pending'})],[b('✍️ Записать клиента',{kind:'manual'})],[b('📊 Статистика',{kind:'report'})]];
   if(access.admin)rows.push([b('Фильтр мастера',{kind:'masters'})]);
   if(!s.barberId)text+='\nВсе мастера. Для ручной записи выберите мастера.';
  }else if(s.view==='masters'){

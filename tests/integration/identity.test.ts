@@ -203,8 +203,8 @@ it('start now offers inline booking; contact verification still removes reply ke
   const prompt = deliveries.find(d => d.chatId === '100')?.payload as { reply_markup: { inline_keyboard: { text:string }[][] } };
   expect(prompt.reply_markup.inline_keyboard.flat()).toEqual(expect.arrayContaining([
     expect.objectContaining({text:'Вымышленный мастер'}),
-    expect.objectContaining({text:'Мои записи'}),
-    expect.objectContaining({text:'Настройки'})
+    expect.objectContaining({text:'📋 Мои записи'}),
+    expect.objectContaining({text:'⚙️ Настройки'})
   ]));
   deliveries.length = 0;
   await execute('100', contact());
